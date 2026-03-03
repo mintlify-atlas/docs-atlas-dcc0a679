@@ -1,0 +1,133 @@
+---
+title: '<svelte:element>'
+description: 'Render dynamic HTML elements in Svelte'
+---
+
+```svelte
+<svelte:element this={expression} />
+```
+
+The `<svelte:element>` element lets you render an element that is unknown at author time, for example because it comes from a CMS. Any properties and event listeners present will be applied to the element.
+
+## Attributes
+
+<ParamField path="this" type="string" required>
+  The tag name of the HTML element to render. Must be a valid DOM element tag.
+  
+  If `this` has a nullish value, the element and its children will not be rendered.
+  
+  Invalid values like `#text` or `svelte:head` will not work.
+</ParamField>
+
+<ParamField path="xmlns" type="string">
+  The XML namespace for the element. Use this to explicitly set the namespace when Svelte cannot infer it from context.
+  
+  Common values:
+  - `"http://www.w3.org/2000/svg"` for SVG elements
+  - `"http://www.w3.org/1998/Math/MathML"` for MathML elements
+</ParamField>
+
+## Usage
+
+### Basic dynamic element
+
+```svelte
+<script>
+  let tag = $state('div');
+</script>
+
+<svelte:element this={tag}>
+  This is a {tag} element
+</svelte:element>
+```
+
+### Dynamic heading levels
+
+```svelte
+<script>
+  let level = $state(1);
+  let tag = $derived(`h${level}`);
+</script>
+
+<svelte:element this={tag}>
+  Heading level {level}
+</svelte:element>
+```
+
+### With attributes and event listeners
+
+```svelte
+<script>
+  let tag = $state('button');
+  
+  function handleClick() {
+    console.log('clicked!');
+  }
+</script>
+
+<svelte:element 
+  this={tag} 
+  class="btn"
+  onclick={handleClick}
+>
+  Click me
+</svelte:element>
+```
+
+### Binding to the element
+
+The only supported binding is `bind:this`, since Svelte's built-in bindings do not work with generic elements:
+
+```svelte
+<script>
+  let tag = $state('div');
+  let element;
+</script>
+
+<svelte:element this={tag} bind:this={element}>
+  Content
+</svelte:element>
+```
+
+### Conditional rendering
+
+When `this` is `null` or `undefined`, nothing is rendered:
+
+```svelte
+<script>
+  let tag = $state(null);
+</script>
+
+<svelte:element this={tag}>
+  This won't be rendered
+</svelte:element>
+```
+
+### Explicit namespace
+
+Svelte tries its best to infer the correct namespace from the element's surroundings, but it's not always possible. You can make it explicit with an `xmlns` attribute:
+
+```svelte
+<script>
+  let tag = $state('circle');
+</script>
+
+<svelte:element this={tag} xmlns="http://www.w3.org/2000/svg" />
+```
+
+## Important notes
+
+<Warning>
+If `this` is the name of a void element (e.g., `br`, `hr`, `img`) and `<svelte:element>` has child elements, a runtime error will be thrown in development mode.
+</Warning>
+
+```svelte
+<script>
+  let tag = $state('hr');
+</script>
+
+<!-- This will throw an error in dev mode -->
+<svelte:element this={tag}>
+  This text cannot appear inside an hr element
+</svelte:element>
+```

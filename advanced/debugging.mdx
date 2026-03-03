@@ -1,0 +1,541 @@
+---
+title: Debugging
+description: Tools, techniques, and best practices for debugging Svelte applications including devtools, inspecting reactivity, and troubleshooting common issues
+---
+
+Svelte provides excellent debugging tools and techniques to help you identify and fix issues in your applications.
+
+## Svelte DevTools
+
+The official browser extension provides powerful debugging capabilities:
+
+### Installation
+
+- **Chrome/Edge**: [Svelte DevTools on Chrome Web Store](https://chrome.google.com/webstore/detail/svelte-devtools/ckolcbmkjpjmangdbmnkpjigpkddpogn)
+- **Firefox**: [Svelte DevTools on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/svelte-devtools/)
+
+### Features
+
+**Component Tree**:
+- View component hierarchy
+- Inspect component props and state
+- See which components are mounted
+- Track component parent-child relationships
+
+**State Inspector**:
+- View all reactive state (`$state`)
+- Inspect derived values (`$derived`)
+- Monitor state changes in real-time
+- Modify state values directly
+
+**Event Timeline**:
+- Track component lifecycle events
+- See when effects run
+- Monitor prop updates
+
+<Tip>
+Enable Svelte DevTools in development mode for the best debugging experience. It automatically detects Svelte applications.
+</Tip>
+
+## The `$inspect` Rune
+
+### Basic Usage
+
+Log reactive state changes with `$inspect`:
+
+```svelte
+<script>
+  let count = $state(0);
+  let user = $state({ name: 'Alice', age: 30 });
+  
+  // Logs whenever count or user changes
+  $inspect(count, user);
+</script>
+
+<button onclick={() => count++}>Count: {count}</button>
+<button onclick={() => user.age++}>Age: {user.age}</button>
+```
+
+**Output**:
+```
+count: 1
+user: { name: 'Alice', age: 31 }
+  at Component.svelte:5:2
+```
+
+<Note>
+`$inspect` only works in development mode. It becomes a no-op in production builds.
+</Note>
+
+### Deep Reactivity Tracking
+
+`$inspect` tracks changes deeply in objects and arrays:
+
+```svelte
+<script>
+  let todos = $state([
+    { id: 1, text: 'Learn Svelte', done: false },
+    { id: 2, text: 'Build app', done: false }
+  ]);
+  
+  $inspect(todos);
+  
+  function toggleTodo(id) {
+    const todo = todos.find(t => t.id === id);
+    todo.done = !todo.done; // $inspect logs this mutation
+  }
+</script>
+```
+
+### Custom Logging with `.with`
+
+Provide your own logging function:
+
+```svelte
+<script>
+  let count = $state(0);
+  
+  $inspect(count).with((type, value) => {
+    if (type === 'update') {
+      console.log(`Count changed to ${value}`);
+      debugger; // Pause execution on changes
+    }
+  });
+</script>
+```
+
+**Parameters**:
+- `type`: `"init"` (first call) or `"update"` (subsequent changes)
+- `...values`: The values passed to `$inspect`
+
+### Tracing Reactive Dependencies
+
+Use `$inspect.trace()` to debug why effects or derived values re-run:
+
+```svelte
+<script>
+  let firstName = $state('Alice');
+  let lastName = $state('Smith');
+  let age = $state(30);
+  
+  let greeting = $derived.by(() => {
+    $inspect.trace('greeting calculation');
+    return `${firstName} ${lastName} (${age})`;
+  });
+</script>
+
+<input bind:value={firstName} placeholder="First name" />
+<input bind:value={lastName} placeholder="Last name" />
+<input bind:value={age} type="number" />
+
+<p>{greeting}</p>
+```
+
+**Console output when `firstName` changes**:
+```
+greeting calculation
+Dependencies:
+  - firstName (changed)
+  - lastName
+  - age
+```
+
+<Tip>
+`$inspect.trace()` must be the **first statement** in an effect or derived function body.
+</Tip>
+
+## Browser DevTools
+
+### Chrome DevTools
+
+**Elements Panel**:
+- Inspect DOM structure
+- View component-generated HTML
+- Modify styles in real-time
+- Check element accessibility
+
+**Console**:
+```svelte
+<script>
+  let data = $state({ items: [] });
+  
+  // Make available in console for debugging
+  globalThis.debug = { data };
+  
+  $effect(() => {
+    console.log('Data updated:', data);
+  });
+</script>
+```
+
+Now in console:
+```js
+> debug.data
+{ items: [...] }
+
+> debug.data.items.push({ id: 4 })
+// Triggers reactive updates
+```
+
+**Performance Panel**:
+<Steps>
+  1. Start recording
+  2. Interact with your app (click, scroll, type)
+  3. Stop recording
+  4. Analyze flame graph for slow operations
+  5. Identify expensive component renders
+</Steps>
+
+**Network Panel**:
+- Monitor API requests
+- Check request/response times
+- Debug failed requests
+- Inspect headers and payloads
+
+### Source Maps
+
+Svelte generates source maps automatically in development:
+
+```js
+// vite.config.js
+export default {
+  build: {
+    sourcemap: true // Enable in production for debugging
+  }
+};
+```
+
+With source maps, you can:
+- Set breakpoints in `.svelte` files
+- Step through original source code
+- See original variable names
+- Get accurate stack traces
+
+## Common Debugging Scenarios
+
+### Reactivity Not Working
+
+**Problem**: Component doesn't update when state changes
+
+```svelte
+<script>
+  // ❌ Bad: Not reactive
+  let count = 0;
+  
+  function increment() {
+    count++; // DOM won't update
+  }
+</script>
+
+<button onclick={increment}>{count}</button>
+```
+
+**Solution**: Use `$state`
+
+```svelte
+<script>
+  // ✅ Good: Reactive
+  let count = $state(0);
+  
+  function increment() {
+    count++; // DOM updates
+  }
+</script>
+```
+
+**Debug with `$inspect.trace`**:
+```svelte
+<script>
+  let count = $state(0);
+  
+  $effect(() => {
+    $inspect.trace('count effect');
+    console.log('Count:', count);
+  });
+</script>
+```
+
+### Props Not Updating
+
+**Problem**: Child component doesn't react to prop changes
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  let { value } = $props();
+  
+  // ❌ Bad: Captures initial value only
+  let doubled = value * 2;
+</script>
+
+<p>{doubled}</p>
+```
+
+**Solution**: Use `$derived` for computed props
+
+```svelte
+<script>
+  let { value } = $props();
+  
+  // ✅ Good: Recalculates when value changes
+  let doubled = $derived(value * 2);
+</script>
+```
+
+### Infinite Loops in Effects
+
+**Problem**: Effect triggers itself
+
+```svelte
+<script>
+  let items = $state([]);
+  
+  $effect(() => {
+    // ❌ Bad: Modifies its own dependency
+    items = [...items, Math.random()];
+  });
+</script>
+```
+
+**Solution**: Use the right tool
+
+```svelte
+<script>
+  let count = $state(0);
+  
+  // ✅ For initial setup only
+  $effect(() => {
+    const interval = setInterval(() => {
+      count++; // This is fine - effect doesn't depend on count
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  });
+</script>
+```
+
+**Debug infinite loops**:
+```svelte
+<script>
+  let data = $state([]);
+  let runCount = 0;
+  
+  $effect(() => {
+    console.log('Effect run #', ++runCount);
+    if (runCount > 10) {
+      debugger; // Pause after 10 runs
+    }
+    // ... effect code
+  });
+</script>
+```
+
+### Component Not Rendering
+
+**Problem**: Component instance doesn't appear in DOM
+
+Check:
+
+<Steps>
+  1. **Import path**: Is the component imported correctly?
+  2. **Component name**: Does it start with a capital letter?
+  3. **Conditional rendering**: Is it inside a falsy `{#if}` block?
+  4. **Parent mount**: Is the parent component mounted?
+</Steps>
+
+```svelte
+<script>
+  import MyComponent from './MyComponent.svelte'; // Check path
+  
+  let show = $state(true);
+  
+  $effect(() => {
+    console.log('Parent mounted');
+  });
+</script>
+
+{#if show}
+  <MyComponent /> <!-- Capital letter required -->
+{:else}
+  <p>Component hidden</p>
+{/if}
+```
+
+## Error Boundaries
+
+Catch and handle component errors gracefully:
+
+```svelte
+<script>
+  import { ErrorBoundary } from './ErrorBoundary.svelte';
+  import RiskyComponent from './RiskyComponent.svelte';
+</script>
+
+<svelte:boundary onerror={(error) => console.error(error)}>
+  <RiskyComponent />
+  
+  {#snippet failed(error)}
+    <div class="error">
+      <h2>Something went wrong</h2>
+      <pre>{error.message}</pre>
+    </div>
+  {/snippet}
+</svelte:boundary>
+```
+
+<Note>
+Use `<svelte:boundary>` to prevent errors from crashing your entire app.
+</Note>
+
+## Testing and Debugging
+
+### Component Tests with Vitest
+
+Write tests that act as debugging documentation:
+
+```js
+import { render, screen } from '@testing-library/svelte';
+import { expect, test } from 'vitest';
+import Counter from './Counter.svelte';
+
+test('counter increments', async () => {
+  const { component } = render(Counter, { props: { initial: 0 } });
+  
+  const button = screen.getByRole('button');
+  expect(button).toHaveTextContent('0');
+  
+  await button.click();
+  expect(button).toHaveTextContent('1');
+});
+```
+
+### Debug Mode in Tests
+
+```js
+import { render } from '@testing-library/svelte';
+import { expect, test } from 'vitest';
+import Component from './Component.svelte';
+
+test.only('debug specific test', () => {
+  const { debug } = render(Component);
+  
+  debug(); // Prints current DOM
+  
+  // ... test assertions
+});
+```
+
+## Logging Best Practices
+
+### Structured Logging
+
+```svelte
+<script>
+  function fetchData() {
+    console.group('fetchData');
+    console.time('fetch-duration');
+    
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(data => {
+        console.log('Data:', data);
+        console.timeEnd('fetch-duration');
+        console.groupEnd();
+      })
+      .catch(error => {
+        console.error('Fetch failed:', error);
+        console.groupEnd();
+      });
+  }
+</script>
+```
+
+### Conditional Logging
+
+```svelte
+<script>
+  const DEBUG = import.meta.env.DEV;
+  
+  function log(...args) {
+    if (DEBUG) console.log(...args);
+  }
+  
+  let count = $state(0);
+  
+  $effect(() => {
+    log('Count changed:', count);
+  });
+</script>
+```
+
+## Development vs Production
+
+### Environment Detection
+
+```svelte
+<script>
+  import { DEV } from 'esm-env';
+  
+  if (DEV) {
+    console.log('Development mode');
+    globalThis.debugApp = {
+      // Expose debugging utilities
+    };
+  }
+</script>
+```
+
+### Debug Panels
+
+```svelte
+<script>
+  import { DEV } from 'esm-env';
+  import DebugPanel from './DebugPanel.svelte';
+  
+  let showDebug = $state(false);
+</script>
+
+{#if DEV}
+  <button onclick={() => showDebug = !showDebug}>
+    Toggle Debug Panel
+  </button>
+  
+  {#if showDebug}
+    <DebugPanel />
+  {/if}
+{/if}
+```
+
+## Debugging Tips
+
+<Steps>
+  1. **Use `$inspect` liberally** - It's removed in production automatically
+  2. **Enable Svelte DevTools** - Essential for understanding component state
+  3. **Add `debugger` statements** - Pause execution at specific points
+  4. **Log component lifecycle** - Track when components mount/unmount
+  5. **Test edge cases** - Write tests for problematic scenarios
+  6. **Use TypeScript** - Catch type errors before runtime
+  7. **Check the compiler warnings** - Svelte warns about common mistakes
+  8. **Profile performance** - Use browser tools to find bottlenecks
+</Steps>
+
+<Warning>
+**Common mistakes to avoid:**
+
+- Forgetting to use `$state` for reactive variables
+- Using `$effect` instead of `$derived` for computed values
+- Not providing keys in `{#each}` blocks
+- Modifying props directly (use callbacks or events)
+- Ignoring compiler warnings
+</Warning>
+
+## Additional Resources
+
+- [Svelte DevTools Documentation](https://github.com/sveltejs/svelte-devtools)
+- [Chrome DevTools Guide](https://developer.chrome.com/docs/devtools/)
+- [Testing Library Docs](https://testing-library.com/docs/svelte-testing-library/intro)
+- [Vitest Testing Framework](https://vitest.dev/)
+
+<Tip>
+The best debugging tool is **prevention**. Use TypeScript, write tests, and pay attention to compiler warnings to catch issues early.
+</Tip>

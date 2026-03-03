@@ -1,0 +1,77 @@
+---
+title: onMount
+description: Schedule a function to run when a component is mounted to the DOM
+---
+
+Schedules a function to run as soon as the component has been mounted to the DOM. Like [`$effect`](/runes/effect), but the provided function only runs once.
+
+## Signature
+
+```ts
+function onMount<T>(
+  fn: () => NotFunction<T> | Promise<NotFunction<T>> | (() => any)
+): void
+```
+
+<ParamField path="fn" type="function" required>
+  A function to run once the component is mounted. If a function is returned _synchronously_, it will be called when the component is unmounted.
+</ParamField>
+
+## Usage
+
+`onMount` must be called during the component's initialisation (but doesn't need to live _inside_ the component; it can be called from an external module).
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+
+  onMount(() => {
+    console.log('component mounted');
+  });
+</script>
+```
+
+### Cleanup function
+
+If a function is returned _synchronously_ from `onMount`, it will be called when the component is unmounted:
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+
+  onMount(() => {
+    const interval = setInterval(() => {
+      console.log('tick');
+    }, 1000);
+
+    return () => clearInterval(interval);
+  });
+</script>
+```
+
+### Async functions
+
+`onMount` can accept async functions, but the cleanup function must be returned synchronously if needed:
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+
+  onMount(async () => {
+    const data = await fetch('/api/data');
+    console.log(await data.json());
+  });
+</script>
+```
+
+## Server-side rendering
+
+`onMount` functions do not run during [server-side rendering](/api/server/render). If you need to run code on both the server and client, use `$effect` instead.
+
+## Notes
+
+- Must be called during component initialization
+- Only runs once per component instance
+- Does not run during SSR
+- Can be called from external modules
+- Cleanup function must be returned synchronously

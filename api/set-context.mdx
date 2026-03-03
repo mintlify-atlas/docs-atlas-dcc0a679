@@ -1,0 +1,108 @@
+---
+title: setContext()
+description: Associate a context object with the current component and a specified key, making it available to child components.
+---
+
+Associates an arbitrary `context` object with the current component and the specified `key` and returns that object. The context is then available to children of the component (including slotted content) with `getContext`.
+
+Like lifecycle functions, this must be called during component initialisation.
+
+[`createContext`](https://svelte.dev/docs/svelte/svelte#createContext) is a type-safe alternative.
+
+## Signature
+
+```ts
+function setContext<T>(key: any, context: T): T
+```
+
+## Parameters
+
+<ParamField path="key" type="any" required>
+  The key to associate with the context. This can be any value (string, symbol, object, etc.).
+</ParamField>
+
+<ParamField path="context" type="T" required>
+  The context object to associate with the key. This can be any value and will be returned unchanged.
+</ParamField>
+
+## Returns
+
+<ResponseField name="context" type="T">
+  Returns the same context object that was passed in.
+</ResponseField>
+
+## Example
+
+### Parent Component
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import Child from './Child.svelte';
+
+  // Set context with a string key
+  setContext('theme', {
+    color: 'blue',
+    mode: 'dark'
+  });
+
+  // Set context with a symbol key (recommended for avoiding conflicts)
+  const userKey = Symbol('user');
+  setContext(userKey, {
+    name: 'Alice',
+    id: 123
+  });
+</script>
+
+<Child />
+```
+
+### Child Component
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getContext } from 'svelte';
+
+  const theme = getContext('theme');
+  console.log(theme.color); // 'blue'
+  console.log(theme.mode); // 'dark'
+</script>
+
+<div style="color: {theme.color}">
+  Theme color: {theme.color}
+</div>
+```
+
+## Type-Safe Context
+
+For better type safety, consider using `createContext` instead:
+
+```svelte
+<!-- context.ts -->
+import { createContext } from 'svelte';
+
+interface Theme {
+  color: string;
+  mode: 'light' | 'dark';
+}
+
+export const [getTheme, setTheme] = createContext<Theme>();
+```
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setTheme } from './context';
+  
+  setTheme({ color: 'blue', mode: 'dark' });
+</script>
+```
+
+## Notes
+
+- Must be called during component initialisation (not in callbacks or effects)
+- Context is available to all descendant components, including slotted content
+- Context is scoped to the component tree, not globally
+- Using symbols as keys helps avoid naming conflicts between different libraries

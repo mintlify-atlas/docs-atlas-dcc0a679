@@ -1,0 +1,327 @@
+---
+title: Props and State
+description: Managing component props and reactive state in Svelte
+---
+
+Props and state are the fundamental ways to manage data in Svelte components. Props pass data from parent to child, while state manages data within a component.
+
+## Component Props
+
+Props (short for properties) are how you pass data to components. You pass props just like you pass attributes to elements:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import MyComponent from './MyComponent.svelte';
+</script>
+
+<MyComponent adjective="cool" count={42} />
+```
+
+### Declaring Props with $props
+
+Inside the child component, receive props with the `$props` rune:
+
+```svelte
+<!-- MyComponent.svelte -->
+<script>
+  let props = $props();
+</script>
+
+<p>This component is {props.adjective}</p>
+<p>Count: {props.count}</p>
+```
+
+<Steps>
+
+### Destructuring Props
+
+More commonly, you'll destructure your props:
+
+```svelte
+<script>
+  let { adjective, count } = $props();
+</script>
+
+<p>This component is {adjective}</p>
+<p>Count: {count}</p>
+```
+
+### Fallback Values
+
+Provide default values for props that may not be passed:
+
+```svelte
+<script>
+  let { adjective = 'happy', count = 0 } = $props();
+</script>
+```
+
+### Renaming Props
+
+Use destructuring assignment to rename props:
+
+```svelte
+<script>
+  let { class: className, super: trouper = 'lights are gonna find me' } = $props();
+</script>
+```
+
+### Rest Props
+
+Capture remaining props with a rest property:
+
+```svelte
+<script>
+  let { title, description, ...others } = $props();
+</script>
+
+<div {...others}>
+  <h1>{title}</h1>
+  <p>{description}</p>
+</div>
+```
+
+</Steps>
+
+## Type-Safe Props
+
+Add type safety using TypeScript:
+
+```svelte
+<script lang="ts">
+  interface Props {
+    name: string;
+    age: number;
+    email?: string;
+  }
+  
+  let { name, age, email = 'N/A' }: Props = $props();
+</script>
+
+<div>
+  <p>Name: {name}</p>
+  <p>Age: {age}</p>
+  <p>Email: {email}</p>
+</div>
+```
+
+Or using JSDoc:
+
+```svelte
+<script>
+  /** @type {{ name: string, age: number }} */
+  let { name, age } = $props();
+</script>
+```
+
+## Component State
+
+The `$state` rune creates reactive state within a component:
+
+```svelte
+<script>
+  let count = $state(0);
+</script>
+
+<button onclick={() => count++}>
+  clicks: {count}
+</button>
+```
+
+### Deep Reactive State
+
+Arrays and objects become deeply reactive state proxies:
+
+```svelte
+<script>
+  let todos = $state([
+    { done: false, text: 'add more todos' }
+  ]);
+  
+  function addTodo() {
+    todos.push({ done: false, text: 'new todo' });
+  }
+  
+  function toggleTodo(index) {
+    todos[index].done = !todos[index].done;
+  }
+</script>
+
+<ul>
+  {#each todos as todo, i}
+    <li>
+      <input type="checkbox" bind:checked={todo.done} />
+      {todo.text}
+    </li>
+  {/each}
+</ul>
+
+<button onclick={addTodo}>Add Todo</button>
+```
+
+### State in Classes
+
+Use `$state` in class fields:
+
+```svelte
+<script>
+  class Todo {
+    done = $state(false);
+    
+    constructor(text) {
+      this.text = $state(text);
+    }
+    
+    reset = () => {
+      this.text = '';
+      this.done = false;
+    }
+  }
+  
+  let todo = new Todo('Learn Svelte');
+</script>
+
+<div>
+  <input type="checkbox" bind:checked={todo.done} />
+  <input bind:value={todo.text} />
+  <button onclick={todo.reset}>Reset</button>
+</div>
+```
+
+## Derived State
+
+Create computed values with the `$derived` rune:
+
+```svelte
+<script>
+  let count = $state(0);
+  let doubled = $derived(count * 2);
+  let quadrupled = $derived(doubled * 2);
+</script>
+
+<button onclick={() => count++}>Increment</button>
+<p>Count: {count}</p>
+<p>Doubled: {doubled}</p>
+<p>Quadrupled: {quadrupled}</p>
+```
+
+For complex derivations, use `$derived.by`:
+
+```svelte
+<script>
+  let items = $state([1, 2, 3, 4, 5]);
+  
+  let stats = $derived.by(() => {
+    const sum = items.reduce((a, b) => a + b, 0);
+    const average = sum / items.length;
+    return { sum, average, count: items.length };
+  });
+</script>
+
+<p>Sum: {stats.sum}</p>
+<p>Average: {stats.average}</p>
+<p>Count: {stats.count}</p>
+```
+
+## Bindable Props
+
+Create two-way bindings with `$bindable`:
+
+```svelte
+<!-- FancyInput.svelte -->
+<script>
+  let { value = $bindable(), ...props } = $props();
+</script>
+
+<input bind:value={value} {...props} />
+
+<style>
+  input {
+    font-family: 'Comic Sans MS';
+    color: deeppink;
+  }
+</style>
+```
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import FancyInput from './FancyInput.svelte';
+  
+  let message = $state('hello');
+</script>
+
+<FancyInput bind:value={message} />
+<p>{message}</p>
+```
+
+## Updating Props
+
+References to props update automatically when the prop changes. You can temporarily reassign props:
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  let { count } = $props();
+</script>
+
+<button onclick={() => count += 1}>
+  clicks (child): {count}
+</button>
+```
+
+However, avoid mutating props unless they are bindable. Use callback props or `$bindable` for parent-child communication.
+
+## Unique IDs with $props.id()
+
+Generate unique IDs for component instances:
+
+```svelte
+<script>
+  const uid = $props.id();
+</script>
+
+<form>
+  <label for="{uid}-firstname">First Name:</label>
+  <input id="{uid}-firstname" type="text" />
+  
+  <label for="{uid}-lastname">Last Name:</label>
+  <input id="{uid}-lastname" type="text" />
+</form>
+```
+
+## Raw State
+
+For non-reactive objects, use `$state.raw`:
+
+```svelte
+<script>
+  let person = $state.raw({
+    name: 'Heraclitus',
+    age: 49
+  });
+  
+  // Only reassignment works, not mutation
+  function birthday() {
+    person = { ...person, age: person.age + 1 };
+  }
+</script>
+```
+
+## State Snapshots
+
+Take static snapshots of reactive state:
+
+```svelte
+<script>
+  let counter = $state({ count: 0 });
+  
+  function logSnapshot() {
+    console.log($state.snapshot(counter));
+  }
+</script>
+
+<button onclick={() => counter.count++}>Increment</button>
+<button onclick={logSnapshot}>Log Snapshot</button>
+```

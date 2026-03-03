@@ -1,0 +1,130 @@
+---
+title: untrack()
+description: Reads reactive state without creating dependencies
+---
+
+When used inside a `$derived` or `$effect`, any state read inside `fn` will not be treated as a dependency.
+
+```ts
+function untrack<T>(fn: () => T): T
+```
+
+## Parameters
+
+<ParamField path="fn" type="() => T" required>
+  A function to execute without tracking dependencies. Any reactive state accessed within this function will not cause the containing effect or derived to re-run
+</ParamField>
+
+## Returns
+
+<ResponseField name="result" type="T">
+  The return value of the `fn` function
+</ResponseField>
+
+## Examples
+
+### Saving data with timestamp
+
+```ts
+import { untrack } from 'svelte';
+
+let data = $state({ value: 0 });
+let time = $state(Date.now());
+
+$effect(() => {
+  // This will run when `data` changes, but not when `time` changes
+  save(data, {
+    timestamp: untrack(() => time)
+  });
+});
+```
+
+### Reading state without creating dependency
+
+```svelte
+<script>
+  import { untrack } from 'svelte';
+
+  let count = $state(0);
+  let clicks = $state(0);
+
+  // This derived only re-runs when count changes
+  let message = $derived(
+    `Count is ${count}, clicks were ${untrack(() => clicks)} when count changed`
+  );
+</script>
+
+<button onclick={() => clicks++}>Click (no update)</button>
+<button onclick={() => count++}>Count (triggers update)</button>
+<p>{message}</p>
+```
+
+### Conditional dependency
+
+```ts
+import { untrack } from 'svelte';
+
+let enabled = $state(true);
+let value = $state(0);
+
+$effect(() => {
+  if (enabled) {
+    console.log('Value changed:', value);
+  } else {
+    // Read value without tracking it
+    console.log('Value (untracked):', untrack(() => value));
+  }
+});
+```
+
+### Preventing infinite loops
+
+```ts
+import { untrack } from 'svelte';
+
+let items = $state([1, 2, 3]);
+let total = $state(0);
+
+$effect(() => {
+  // Calculate total based on items
+  const sum = items.reduce((a, b) => a + b, 0);
+  
+  // Update total without creating a circular dependency
+  untrack(() => {
+    total = sum;
+  });
+});
+```
+
+### Accessing context without dependency
+
+```svelte
+<script>
+  import { untrack, getContext } from 'svelte';
+
+  let counter = $state(0);
+
+  $effect(() => {
+    console.log('Counter:', counter);
+    
+    // Access context value without making it a dependency
+    const theme = untrack(() => getContext('theme'));
+    console.log('Current theme:', theme);
+  });
+</script>
+```
+
+## Use cases
+
+- **Logging**: Read reactive state for logging purposes without creating unnecessary dependencies
+- **Timestamps**: Add metadata (like timestamps) that shouldn't trigger re-runs
+- **Conditional dependencies**: Only track certain values when specific conditions are met
+- **Breaking circular dependencies**: Update state within an effect that reads related state
+- **Performance optimization**: Prevent unnecessary reactivity for values that don't need to trigger updates
+
+## Notes
+
+- `untrack()` only affects dependency tracking, not the execution of the function
+- The function passed to `untrack()` is executed immediately and synchronously
+- This is particularly useful in `$effect` and `$derived` contexts where automatic dependency tracking occurs
+- State reads inside `untrack()` still return the current reactive value, they just don't create dependencies

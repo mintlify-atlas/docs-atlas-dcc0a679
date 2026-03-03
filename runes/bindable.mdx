@@ -1,0 +1,122 @@
+---
+title: $bindable
+description: Create bindable props in Svelte with the $bindable rune
+---
+
+Ordinarily, props go one way, from parent to child. This makes it easy to understand how data flows around your app.
+
+In Svelte, component props can be _bound_, which means that data can also flow _up_ from child to parent. This isn't something you should do often — overuse can make your data flow unpredictable and your components harder to maintain — but it can simplify your code if used sparingly and carefully.
+
+It also means that a state proxy can be _mutated_ in the child.
+
+## Signature
+
+```ts
+function $bindable<T>(fallback?: T): T;
+```
+
+<ParamField path="fallback" type="T" optional>
+  The fallback value to use when the parent component doesn't bind to this prop.
+</ParamField>
+
+<Note>
+Mutation is also possible with normal props, but is strongly discouraged — Svelte will warn you if it detects that a component is mutating state it does not 'own'.
+</Note>
+
+## Basic usage
+
+To mark a prop as bindable, we use the `$bindable` rune:
+
+```svelte
+/// file: FancyInput.svelte
+<script>
+	let { value = $bindable(), ...props } = $props();
+</script>
+
+<input bind:value={value} {...props} />
+
+<style>
+	input {
+		font-family: 'Comic Sans MS';
+		color: deeppink;
+	}
+</style>
+```
+
+Now, a component that uses `<FancyInput>` can add the `bind:` directive:
+
+```svelte
+/// file: App.svelte
+<script>
+	import FancyInput from './FancyInput.svelte';
+
+	let message = $state('hello');
+</script>
+
+<FancyInput bind:value={message} />
+<p>{message}</p>
+```
+
+<Note>
+The parent component doesn't _have_ to use `bind:` — it can just pass a normal prop. Some parents don't want to listen to what their children have to say.
+</Note>
+
+## Fallback values
+
+In this case, you can specify a fallback value for when no prop is passed at all:
+
+```js
+/// file: FancyInput.svelte
+let { value = $bindable('fallback'), ...props } = $props();
+```
+
+## Two-way binding
+
+When a parent component binds to a child prop using `bind:value={message}`, changes in the child will flow back up to the parent. This creates a two-way binding:
+
+- Parent changes update the child
+- Child changes update the parent
+
+<Tabs>
+  <Tab title="Parent">
+    ```svelte
+    <script>
+    	import Child from './Child.svelte';
+    	let count = $state(0);
+    </script>
+
+    <Child bind:count={count} />
+    <p>Parent count: {count}</p>
+    ```
+  </Tab>
+  <Tab title="Child">
+    ```svelte
+    <script>
+    	let { count = $bindable() } = $props();
+    </script>
+
+    <button onclick={() => count++}>
+    	Increment in child
+    </button>
+    <p>Child count: {count}</p>
+    ```
+  </Tab>
+</Tabs>
+
+## When to use bindable props
+
+Use `$bindable` sparingly. It's most appropriate for:
+
+- Form input wrappers (like the `FancyInput` example)
+- Tightly coupled components where bidirectional data flow is natural
+- Creating reusable components that need to update parent state
+
+For most component communication, prefer:
+
+- Passing data down via props
+- Passing callbacks up via event handler props
+- Using context for deeply nested components
+
+<Warning>
+Overusing `$bindable` can make data flow harder to understand and debug. Use it judiciously.
+</Warning>

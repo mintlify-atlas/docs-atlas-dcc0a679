@@ -1,0 +1,166 @@
+---
+title: '<svelte:body>'
+description: 'Add event listeners and actions to the document body'
+---
+
+```svelte
+<svelte:body onevent={handler} />
+```
+
+Similarly to `<svelte:window>`, this element allows you to add listeners to events on `document.body`, such as `mouseenter` and `mouseleave`, which don't fire on `window`. It also lets you use actions on the `<body>` element.
+
+<Note>
+As with `<svelte:window>` and `<svelte:document>`, this element may only appear at the top level of your component and must never be inside a block or element.
+</Note>
+
+## Event Listeners
+
+You can add any valid DOM event listener that works on the body element:
+
+```svelte
+<script>
+  function handleMouseenter() {
+    console.log('Mouse entered the body');
+  }
+  
+  function handleMouseleave() {
+    console.log('Mouse left the body');
+  }
+</script>
+
+<svelte:body 
+  onmouseenter={handleMouseenter} 
+  onmouseleave={handleMouseleave} 
+/>
+```
+
+### Common body events
+
+- `onmouseenter` - Mouse enters the body
+- `onmouseleave` - Mouse leaves the body
+- `onmousemove` - Mouse moves over body
+- `onclick` - Click on body
+- `ontouchstart` - Touch starts on body
+- `ontouchend` - Touch ends on body
+
+## Actions
+
+You can use Svelte actions on the body element:
+
+```svelte
+<script>
+  function trackClicks(node) {
+    function handleClick(event) {
+      console.log('Body clicked at:', event.clientX, event.clientY);
+    }
+    
+    node.addEventListener('click', handleClick);
+    
+    return {
+      destroy() {
+        node.removeEventListener('click', handleClick);
+      }
+    };
+  }
+</script>
+
+<svelte:body use:trackClicks />
+```
+
+## Usage
+
+### Detect mouse leaving window
+
+```svelte
+<script>
+  let mouseInWindow = $state(true);
+</script>
+
+<svelte:body 
+  onmouseenter={() => mouseInWindow = true}
+  onmouseleave={() => mouseInWindow = false}
+/>
+
+{#if !mouseInWindow}
+  <div class="warning">
+    Come back!
+  </div>
+{/if}
+```
+
+### Track global mouse position
+
+```svelte
+<script>
+  let x = $state(0);
+  let y = $state(0);
+  
+  function handleMousemove(event) {
+    x = event.clientX;
+    y = event.clientY;
+  }
+</script>
+
+<svelte:body onmousemove={handleMousemove} />
+
+<p>Mouse position: {x}, {y}</p>
+```
+
+### Using multiple actions
+
+```svelte
+<script>
+  import { action1, action2 } from './actions.js';
+</script>
+
+<svelte:body use:action1 use:action2 />
+```
+
+### Click outside detection
+
+```svelte
+<script>
+  let modal;
+  let isOpen = $state(false);
+  
+  function handleBodyClick(event) {
+    if (modal && !modal.contains(event.target)) {
+      isOpen = false;
+    }
+  }
+</script>
+
+<svelte:body onclick={handleBodyClick} />
+
+{#if isOpen}
+  <div class="modal" bind:this={modal}>
+    Modal content
+  </div>
+{/if}
+
+<button onclick={() => isOpen = true}>
+  Open modal
+</button>
+```
+
+### Combine events and actions
+
+```svelte
+<script>
+  import { someAction } from './actions.js';
+  
+  function handleMouseenter() {
+    console.log('entered');
+  }
+  
+  function handleMouseleave() {
+    console.log('left');
+  }
+</script>
+
+<svelte:body 
+  onmouseenter={handleMouseenter}
+  onmouseleave={handleMouseleave}
+  use:someAction
+/>
+```

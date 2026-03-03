@@ -1,0 +1,84 @@
+---
+title: onDestroy
+description: Schedule a callback to run when a component is unmounted
+---
+
+Schedules a callback to run immediately before the component is unmounted.
+
+Of the lifecycle functions (`onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`), this is the only one that runs inside a server-side component.
+
+## Signature
+
+```ts
+function onDestroy(fn: () => any): void
+```
+
+<ParamField path="fn" type="function" required>
+  A function to run immediately before the component is unmounted.
+</ParamField>
+
+## Usage
+
+```svelte
+<script>
+  import { onDestroy } from 'svelte';
+
+  onDestroy(() => {
+    console.log('component is being destroyed');
+  });
+</script>
+```
+
+### Cleanup example
+
+```svelte
+<script>
+  import { onDestroy } from 'svelte';
+
+  const interval = setInterval(() => {
+    console.log('tick');
+  }, 1000);
+
+  onDestroy(() => {
+    clearInterval(interval);
+  });
+</script>
+```
+
+### With external modules
+
+`onDestroy` can be called from external modules, making it useful for encapsulating reusable logic:
+
+```js
+// utils.js
+import { onDestroy } from 'svelte';
+
+export function setupTimer() {
+  const interval = setInterval(() => {
+    console.log('tick');
+  }, 1000);
+
+  onDestroy(() => {
+    clearInterval(interval);
+  });
+}
+```
+
+```svelte
+<script>
+  import { setupTimer } from './utils.js';
+
+  setupTimer();
+</script>
+```
+
+## Server-side rendering
+
+Unlike other lifecycle functions, `onDestroy` **does** run during server-side rendering. This makes it useful for cleanup that should happen in both client and server environments.
+
+## Notes
+
+- Must be called during component initialization
+- Runs on both client and server
+- Can be called from external modules
+- Runs immediately before the component is unmounted

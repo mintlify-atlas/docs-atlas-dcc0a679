@@ -1,0 +1,221 @@
+---
+title: tick()
+description: Returns a promise that resolves after pending state changes are applied
+---
+
+Returns a promise that resolves once any pending state changes have been applied to the DOM.
+
+```ts
+function tick(): Promise<void>
+```
+
+## Returns
+
+<ResponseField name="promise" type="Promise<void>">
+  A promise that resolves after all pending state changes have been applied and the DOM has been updated
+</ResponseField>
+
+## Examples
+
+### Waiting for DOM updates
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let count = $state(0);
+
+  async function increment() {
+    count++;
+    await tick();
+    // DOM has been updated
+    console.log('New count in DOM:', document.getElementById('count').textContent);
+  }
+</script>
+
+<p id="count">{count}</p>
+<button onclick={increment}>Increment</button>
+```
+
+### Focusing elements after conditional rendering
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let showInput = $state(false);
+  let inputElement;
+
+  async function reveal() {
+    showInput = true;
+    await tick();
+    inputElement?.focus();
+  }
+</script>
+
+<button onclick={reveal}>Show input</button>
+{#if showInput}
+  <input bind:this={inputElement} type="text" />
+{/if}
+```
+
+### Measuring elements after update
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let items = $state([1, 2, 3]);
+
+  async function addItemAndMeasure() {
+    items.push(items.length + 1);
+    await tick();
+    
+    const list = document.getElementById('list');
+    console.log('New list height:', list.offsetHeight);
+  }
+</script>
+
+<ul id="list">
+  {#each items as item}
+    <li>{item}</li>
+  {/each}
+</ul>
+<button onclick={addItemAndMeasure}>Add and measure</button>
+```
+
+### Scrolling to new content
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let messages = $state([]);
+  let container;
+
+  async function addMessage(text) {
+    messages.push({ id: Date.now(), text });
+    await tick();
+    
+    // Scroll to bottom after new message is rendered
+    container.scrollTop = container.scrollHeight;
+  }
+</script>
+
+<div bind:this={container} class="messages">
+  {#each messages as message (message.id)}
+    <div>{message.text}</div>
+  {/each}
+</div>
+<button onclick={() => addMessage('Hello!')}>Send message</button>
+
+<style>
+  .messages {
+    height: 200px;
+    overflow-y: auto;
+  }
+</style>
+```
+
+### Sequential state updates
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let status = $state('idle');
+
+  async function runProcess() {
+    status = 'loading';
+    await tick();
+    console.log('Status UI updated to loading');
+    
+    // Simulate async work
+    await fetch('/api/data');
+    
+    status = 'success';
+    await tick();
+    console.log('Status UI updated to success');
+  }
+</script>
+
+<p>Status: {status}</p>
+<button onclick={runProcess}>Run process</button>
+```
+
+### Integration with third-party libraries
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+  import { initChart } from './chart-library';
+
+  let data = $state([10, 20, 30]);
+  let chartElement;
+
+  async function updateData(newData) {
+    data = newData;
+    await tick();
+    
+    // DOM is updated, safe to initialize chart
+    initChart(chartElement, data);
+  }
+</script>
+
+<div bind:this={chartElement}></div>
+```
+
+### Form validation after input
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+
+  let email = $state('');
+  let errors = $state([]);
+
+  async function validateEmail() {
+    errors = [];
+    
+    if (!email.includes('@')) {
+      errors.push('Invalid email');
+    }
+    
+    await tick();
+    
+    // Error messages are now in the DOM
+    if (errors.length > 0) {
+      document.querySelector('.error')?.scrollIntoView();
+    }
+  }
+</script>
+
+<input bind:value={email} onblur={validateEmail} />
+{#each errors as error}
+  <p class="error">{error}</p>
+{/each}
+```
+
+## Use cases
+
+- **Focus management**: Setting focus after elements are rendered
+- **DOM measurements**: Getting element dimensions after updates
+- **Scroll positioning**: Scrolling to new content after it's added
+- **Third-party integrations**: Ensuring DOM is ready for external libraries
+- **Testing**: Waiting for updates in async tests
+- **Animations**: Starting animations after state changes are reflected in the DOM
+
+## Behavior
+
+- `tick()` returns a promise that resolves after the next microtask
+- Internally calls `flushSync()` to ensure all pending updates are applied
+- Multiple calls to `tick()` can be chained with `await`
+- Updates are batched automatically by Svelte for performance
+
+## Notes
+
+- `tick()` is asynchronous, unlike `flushSync()` which is synchronous
+- Use `tick()` when you don't need immediate synchronous updates
+- The promise resolves after Svelte's internal update cycle completes
+- This is the recommended approach for most cases where you need to wait for DOM updates
+- Prior to Svelte 5, this was primarily used in Svelte 3/4 lifecycle methods

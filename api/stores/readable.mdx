@@ -1,0 +1,203 @@
+---
+title: readable
+description: Create a readable store that allows reading by subscription
+---
+
+Create a `Readable` store that allows reading by subscription. Unlike writable stores, readable stores cannot be updated from the outside - their value can only be set by the `start` function.
+
+## Usage
+
+```ts
+import { readable } from 'svelte/store';
+
+const time = readable(new Date(), (set) => {
+  const interval = setInterval(() => {
+    set(new Date());
+  }, 1000);
+
+  return () => clearInterval(interval);
+});
+```
+
+## Signature
+
+```ts
+function readable<T>(
+  value?: T,
+  start?: StartStopNotifier<T>
+): Readable<T>
+```
+
+<ParamField path="value" type="T" optional>
+  Initial value of the store.
+</ParamField>
+
+<ParamField path="start" type="StartStopNotifier<T>" optional>
+  A function that is called when the first subscriber subscribes. It receives `set` and `update` functions and optionally returns a cleanup function that is called when the last subscriber unsubscribes.
+
+  ```ts
+  type StartStopNotifier<T> = (
+    set: (value: T) => void,
+    update: (fn: Updater<T>) => void
+  ) => void | (() => void)
+  ```
+</ParamField>
+
+<ResponseField name="Readable<T>" type="object">
+  A readable store object with the following method:
+
+  <ResponseField name="subscribe" type="(run: Subscriber<T>, invalidate?: () => void) => Unsubscriber">
+    Subscribe to value changes. The `run` callback is called immediately with the current value and then called again whenever the value changes.
+    
+    Returns an unsubscriber function.
+  </ResponseField>
+</ResponseField>
+
+## Store Contract
+
+A readable store implements the following contract:
+
+### subscribe
+
+Subscribe to value changes:
+
+```ts
+const unsubscribe = store.subscribe((value) => {
+  console.log('Value changed:', value);
+});
+
+// Later, cleanup
+unsubscribe();
+```
+
+Unlike writable stores, readable stores do not have `set` or `update` methods accessible from the outside. The value can only be changed from within the `start` function.
+
+## Examples
+
+### Current time store
+
+```ts
+import { readable } from 'svelte/store';
+
+export const time = readable(new Date(), (set) => {
+  // Called when first subscriber subscribes
+  const interval = setInterval(() => {
+    set(new Date());
+  }, 1000);
+
+  // Cleanup function called when last subscriber unsubscribes
+  return () => {
+    clearInterval(interval);
+  };
+});
+```
+
+```svelte
+<script>
+  import { time } from './stores.js';
+</script>
+
+<h1>The time is {$time}</h1>
+```
+
+### Mouse position store
+
+```ts
+import { readable } from 'svelte/store';
+
+export const mouse = readable(
+  { x: 0, y: 0 },
+  (set) => {
+    function handleMouseMove(event) {
+      set({
+        x: event.clientX,
+        y: event.clientY
+      });
+    }
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }
+);
+```
+
+```svelte
+<script>
+  import { mouse } from './stores.js';
+</script>
+
+<p>Mouse position: {$mouse.x}, {$mouse.y}</p>
+```
+
+### Geolocation store
+
+```ts
+import { readable } from 'svelte/store';
+
+export const geolocation = readable(
+  null,
+  (set) => {
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        set({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }
+);
+```
+
+### Auto-subscription with $
+
+In Svelte components, you can use the `$` prefix to automatically subscribe and unsubscribe:
+
+```svelte
+<script>
+  import { time } from './stores.js';
+</script>
+
+<!-- Automatically subscribes and cleans up -->
+<h1>{$time}</h1>
+```
+
+## TypeScript
+
+```ts
+import { readable, type Readable } from 'svelte/store';
+
+interface MousePosition {
+  x: number;
+  y: number;
+}
+
+const mouse: Readable<MousePosition> = readable(
+  { x: 0, y: 0 },
+  (set) => {
+    function handleMouseMove(event: MouseEvent) {
+      set({
+        x: event.clientX,
+        y: event.clientY
+      });
+    }
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }
+);
+```

@@ -1,0 +1,86 @@
+---
+title: beforeUpdate
+description: Schedule a callback before the component updates (deprecated)
+---
+
+<Warning>
+  **Deprecated:** Use [`$effect.pre`](/runes/effect#effectpre) instead. This function only works in legacy mode.
+</Warning>
+
+Schedules a callback to run immediately before the component is updated after any state change.
+
+The first time the callback runs will be before the initial `onMount`.
+
+## Signature
+
+```ts
+function beforeUpdate(fn: () => void): void
+```
+
+<ParamField path="fn" type="function" required>
+  A function to run before the component updates.
+</ParamField>
+
+## Usage
+
+```svelte
+<script>
+  import { beforeUpdate } from 'svelte';
+
+  beforeUpdate(() => {
+    console.log('component is about to update');
+  });
+</script>
+```
+
+## Migration to runes
+
+In runes mode, use `$effect.pre` instead:
+
+### Before (legacy mode)
+
+```svelte
+<script>
+  import { beforeUpdate } from 'svelte';
+
+  let count = 0;
+
+  beforeUpdate(() => {
+    console.log('count is about to update:', count);
+  });
+</script>
+
+<button on:click={() => count++}>
+  clicks: {count}
+</button>
+```
+
+### After (runes mode)
+
+```svelte
+<script>
+  let count = $state(0);
+
+  $effect.pre(() => {
+    console.log('count is about to update:', count);
+  });
+</script>
+
+<button onclick={() => count++}>
+  clicks: {count}
+</button>
+```
+
+## Key differences
+
+- `beforeUpdate` only works in legacy mode (non-runes components)
+- `$effect.pre` is the runes-mode equivalent
+- `$effect.pre` runs before DOM updates, similar to `beforeUpdate`
+- The first run of `beforeUpdate` happens before `onMount`
+
+## Notes
+
+- **Only works in legacy mode**
+- Runs before every component update
+- First run is before the initial `onMount`
+- Does not run during server-side rendering

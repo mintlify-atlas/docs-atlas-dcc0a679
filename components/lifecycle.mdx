@@ -1,0 +1,350 @@
+---
+title: Component Lifecycle
+description: Understanding component lifecycle hooks and timing in Svelte
+---
+
+In Svelte 5, the component lifecycle consists of two main parts: creation and destruction. Everything in between is handled by reactive effects that update specific parts of the UI when state changes.
+
+## Lifecycle Overview
+
+A component's lifecycle:
+
+1. **Creation** - Component is instantiated and mounted to the DOM
+2. **Updates** - Reactive effects run when dependencies change
+3. **Destruction** - Component is unmounted and cleanup occurs
+
+<Steps>
+
+### Component Creation
+
+When a component is created:
+- The `<script>` block executes
+- State is initialized
+- Props are received
+- Effects are scheduled
+- DOM is created and mounted
+- `onMount` callbacks run
+
+### Reactive Updates
+
+During the component's lifetime:
+- `$effect` runs when dependencies change
+- `$derived` values recompute automatically
+- DOM updates are batched and applied
+- No "before update" or "after update" hooks
+
+### Component Destruction
+
+When a component is destroyed:
+- Effect cleanup functions run
+- `onDestroy` callbacks execute
+- DOM is removed
+- Memory is freed
+
+</Steps>
+
+## onMount
+
+The `onMount` function schedules a callback to run when the component is mounted to the DOM:
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+  
+  onMount(() => {
+    console.log('Component has mounted');
+  });
+</script>
+```
+
+### Key Characteristics
+
+- Runs once per component instance
+- Executes after the component is mounted to the DOM
+- Does not run during server-side rendering
+- Can be called from external modules during initialization
+
+### Cleanup with onMount
+
+Return a function from `onMount` to run cleanup when the component unmounts:
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+  
+  onMount(() => {
+    const interval = setInterval(() => {
+      console.log('beep');
+    }, 1000);
+    
+    // Cleanup function
+    return () => clearInterval(interval);
+  });
+</script>
+```
+
+Note: This only works with synchronous functions. Async functions always return a Promise.
+
+### Common Use Cases
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+  
+  let data = $state(null);
+  
+  onMount(async () => {
+    const response = await fetch('/api/data');
+    data = await response.json();
+  });
+</script>
+
+{#if data}
+  <div>{data.title}</div>
+{/if}
+```
+
+## onDestroy
+
+Schedules a callback to run immediately before the component is unmounted:
+
+```svelte
+<script>
+  import { onDestroy } from 'svelte';
+  
+  onDestroy(() => {
+    console.log('Component is being destroyed');
+  });
+</script>
+```
+
+### Server-Side Rendering
+
+`onDestroy` is the only lifecycle hook that runs during server-side rendering:
+
+```svelte
+<script>
+  import { onDestroy } from 'svelte';
+  
+  const cleanup = () => {
+    // This runs on both client and server
+    console.log('Cleaning up resources');
+  };
+  
+  onDestroy(cleanup);
+</script>
+```
+
+## Effects for Reactivity
+
+Use `$effect` for side effects that should run when dependencies change:
+
+```svelte
+<script>
+  let size = $state(50);
+  let color = $state('#ff3e00');
+  let canvas;
+  
+  $effect(() => {
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Reruns when color or size change
+    context.fillStyle = color;
+    context.fillRect(0, 0, size, size);
+  });
+</script>
+
+<canvas bind:this={canvas} width="100" height="100"></canvas>
+```
+
+### Effect Timing
+
+Effects run:
+- After the component is mounted
+- In a microtask after state changes
+- Updates are batched for performance
+- After DOM updates are applied
+
+### Effect Cleanup
+
+Return a cleanup function to run when the effect re-runs or the component is destroyed:
+
+```svelte
+<script>
+  let count = $state(0);
+  let milliseconds = $state(1000);
+  
+  $effect(() => {
+    const interval = setInterval(() => {
+      count += 1;
+    }, milliseconds);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  });
+</script>
+
+<h1>{count}</h1>
+<button onclick={() => milliseconds *= 2}>slower</button>
+<button onclick={() => milliseconds /= 2}>faster</button>
+```
+
+## Pre-DOM Update Effects
+
+Use `$effect.pre` to run code before the DOM updates:
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+  
+  let div = $state();
+  let messages = $state([]);
+  
+  $effect.pre(() => {
+    if (!div) return;
+    
+    messages.length; // Track dependency
+    
+    // Autoscroll when new messages are added
+    if (div.offsetHeight + div.scrollTop > div.scrollHeight - 20) {
+      tick().then(() => {
+        div.scrollTo(0, div.scrollHeight);
+      });
+    }
+  });
+</script>
+
+<div bind:this={div}>
+  {#each messages as message}
+    <p>{message}</p>
+  {/each}
+</div>
+```
+
+## tick() Function
+
+Use `tick` to wait for pending DOM updates:
+
+```svelte
+<script>
+  import { tick } from 'svelte';
+  
+  let items = $state([1, 2, 3]);
+  
+  async function addItem() {
+    items.push(items.length + 1);
+    
+    // Wait for DOM to update
+    await tick();
+    
+    // Now DOM reflects the new state
+    console.log('Item added and rendered');
+  }
+</script>
+
+<button onclick={addItem}>Add Item</button>
+<ul>
+  {#each items as item}
+    <li>{item}</li>
+  {/each}
+</ul>
+```
+
+## Deprecated: beforeUpdate/afterUpdate
+
+These hooks from Svelte 4 are deprecated. Use `$effect.pre` and `$effect` instead:
+
+```svelte
+<script>
+  // OLD (Svelte 4)
+  // import { beforeUpdate, afterUpdate } from 'svelte';
+  // beforeUpdate(() => { /* ... */ });
+  // afterUpdate(() => { /* ... */ });
+  
+  // NEW (Svelte 5)
+  $effect.pre(() => {
+    console.log('before update');
+  });
+  
+  $effect(() => {
+    console.log('after update');
+  });
+</script>
+```
+
+## Advanced: $effect.root
+
+Create effects outside component initialization:
+
+```svelte
+<script>
+  const destroy = $effect.root(() => {
+    $effect(() => {
+      console.log('This effect runs independently');
+    });
+    
+    return () => {
+      console.log('Cleanup');
+    };
+  });
+  
+  // Later...
+  // destroy();
+</script>
+```
+
+## Lifecycle Best Practices
+
+1. **Use onMount for initialization** - Fetch data, set up subscriptions, initialize libraries
+2. **Use onDestroy for cleanup** - Clear timers, unsubscribe, remove event listeners
+3. **Prefer $effect for reactivity** - Let Svelte track dependencies automatically
+4. **Use $effect.pre sparingly** - Only when you need pre-DOM-update timing
+5. **Avoid state updates in effects** - Use `$derived` instead when possible
+
+```svelte
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  
+  let ws;
+  let messages = $state([]);
+  
+  onMount(() => {
+    ws = new WebSocket('ws://localhost:8080');
+    
+    ws.onmessage = (event) => {
+      messages.push(event.data);
+    };
+  });
+  
+  onDestroy(() => {
+    if (ws) {
+      ws.close();
+    }
+  });
+</script>
+```
+
+## Effect Dependencies
+
+Effects automatically track dependencies:
+
+```svelte
+<script>
+  let count = $state(0);
+  let name = $state('world');
+  
+  $effect(() => {
+    // Only reruns when count changes
+    console.log(`Count is ${count}`);
+  });
+  
+  $effect(() => {
+    // Reruns when either count or name changes
+    console.log(`${name}: ${count}`);
+  });
+</script>
+```
+
+Dependencies are tracked synchronously - values read after `await` or in `setTimeout` are not tracked.

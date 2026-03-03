@@ -1,0 +1,122 @@
+---
+title: mount()
+description: Mounts a component to the DOM
+---
+
+Mounts a component to the given target and returns the component exports. Transitions will play during the initial render unless the `intro` option is set to `false`.
+
+```ts
+function mount<Props, Exports>(
+  component: Component<Props, Exports>,
+  options: MountOptions<Props>
+): Exports
+```
+
+## Parameters
+
+<ParamField path="component" type="Component<Props, Exports>" required>
+  The Svelte component to mount
+</ParamField>
+
+<ParamField path="options" type="MountOptions<Props>" required>
+  Configuration options for mounting the component
+
+  <ParamField path="target" type="Document | Element | ShadowRoot" required>
+    Target element where the component will be mounted
+  </ParamField>
+
+  <ParamField path="anchor" type="Node">
+    Optional node inside `target`. When specified, the component is rendered immediately before it
+  </ParamField>
+
+  <ParamField path="props" type="Props">
+    Component properties. Required if the component expects props
+  </ParamField>
+
+  <ParamField path="intro" type="boolean" default="true">
+    Whether or not to play transitions on initial render
+  </ParamField>
+
+  <ParamField path="context" type="Map<any, any>">
+    Can be accessed via `getContext()` at the component level
+  </ParamField>
+
+  <ParamField path="events" type="Record<string, (e: any) => any>" deprecated>
+    Allows the specification of events. Use callback props instead
+  </ParamField>
+
+  <ParamField path="transformError" type="(error: unknown) => unknown | Promise<unknown>">
+    A function that transforms errors caught by error boundaries before they are passed to the `failed` snippet. Defaults to the identity function
+  </ParamField>
+</ParamField>
+
+## Returns
+
+<ResponseField name="exports" type="Exports">
+  The component's exports (and potentially the props if compiled with `accessors: true`)
+</ResponseField>
+
+## Examples
+
+### Basic usage
+
+```js
+import { mount } from 'svelte';
+import App from './App.svelte';
+
+const app = mount(App, {
+  target: document.body,
+  props: {
+    name: 'world'
+  }
+});
+```
+
+### Mounting with anchor
+
+```js
+import { mount } from 'svelte';
+import Component from './Component.svelte';
+
+const anchor = document.getElementById('marker');
+const component = mount(Component, {
+  target: document.body,
+  anchor: anchor,
+  props: { count: 0 }
+});
+```
+
+### Disabling intro transitions
+
+```js
+import { mount } from 'svelte';
+import Modal from './Modal.svelte';
+
+// Mount without playing intro transitions
+const modal = mount(Modal, {
+  target: document.body,
+  intro: false
+});
+```
+
+### With context
+
+```js
+import { mount } from 'svelte';
+import App from './App.svelte';
+
+const context = new Map();
+context.set('api', apiClient);
+
+const app = mount(App, {
+  target: document.body,
+  context: context
+});
+```
+
+## Notes
+
+- In Svelte 5, components are functions, not classes. Use `mount()` instead of `new Component()`
+- The component is mounted synchronously
+- To unmount the component later, use the `unmount()` function
+- See the [migration guide](https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes) for more information about the change from Svelte 4

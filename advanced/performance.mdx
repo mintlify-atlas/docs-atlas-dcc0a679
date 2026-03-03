@@ -1,0 +1,458 @@
+---
+title: Performance Optimization
+description: Techniques and best practices for optimizing Svelte application performance including reactivity, rendering, and bundle size
+---
+
+Svelte is fast by default, but understanding performance optimization techniques helps you build even faster applications.
+
+## Reactivity Optimization
+
+### Use `$state` Sparingly
+
+Only make variables reactive when necessary:
+
+```svelte
+<script>
+  // ❌ Unnecessary reactivity
+  let apiUrl = $state('https://api.example.com');
+  let timeout = $state(5000);
+  
+  // ✅ Good: These don't need to be reactive
+  const apiUrl = 'https://api.example.com';
+  const timeout = 5000;
+  
+  // ✅ Only state that actually changes needs $state
+  let data = $state(null);
+</script>
+```
+
+<Tip>
+Reactive state has overhead. Use plain variables for constants and values that never change.
+</Tip>
+
+### Choose Between `$state` and `$state.raw`
+
+For large objects that are only reassigned (not mutated), use `$state.raw`:
+
+```svelte
+<script>
+  // ❌ Expensive: Deep reactivity proxy for large object
+  let apiResponse = $state({
+    users: [...1000 users],
+    metadata: {...}
+  });
+  
+  // ✅ Better: No deep proxying, just reassignment tracking
+  let apiResponse = $state.raw({
+    users: [...1000 users],
+    metadata: {...}
+  });
+  
+  async function fetchData() {
+    // Reassigning works fine
+    apiResponse = await fetch('/api/data').then(r => r.json());
+  }
+</script>
+```
+
+**Use `$state.raw` when**:
+- Working with large API responses
+- Data is replaced wholesale, not mutated
+- Objects are frequently reassigned
+
+**Use `$state` when**:
+- Mutating nested properties (`user.name = 'Alice'`)
+- Need fine-grained reactivity
+- Working with small objects
+
+### Prefer `$derived` over `$effect`
+
+Compute values with `$derived`, not `$effect`:
+
+```svelte
+<script>
+  let count = $state(0);
+  
+  // ❌ Bad: Using effect to compute derived value
+  let doubled;
+  $effect(() => {
+    doubled = count * 2;
+  });
+  
+  // ✅ Good: Use $derived for computed values
+  let doubled = $derived(count * 2);
+</script>
+```
+
+<Note>
+`$derived` is more efficient and clearer than `$effect` for computing values from state.
+</Note>
+
+### Avoid Reactive Statement Overhead
+
+In legacy mode, reactive statements (`$:`) run more often than necessary:
+
+```svelte
+<script>
+  let items = $state([...]);
+  
+  // Svelte 4 style - runs on any dependency change
+  $: filteredItems = items.filter(item => item.active);
+  
+  // ✅ Svelte 5 - more efficient
+  let filteredItems = $derived(items.filter(item => item.active));
+</script>
+```
+
+<Warning>
+Always use runes mode (`$state`, `$derived`, `$effect`) for better performance. Avoid legacy reactive statements.
+</Warning>
+
+## Rendering Optimization
+
+### Use Keyed Each Blocks
+
+Always provide keys in `{#each}` blocks for efficient updates:
+
+```svelte
+<!-- ❌ Bad: Svelte re-renders all items -->
+{#each items as item}
+  <div>{item.name}</div>
+{/each}
+
+<!-- ✅ Good: Svelte surgically updates only changed items -->
+{#each items as item (item.id)}
+  <div>{item.name}</div>
+{/each}
+```
+
+**Performance impact**:
+- **Without key**: O(n) - Updates all existing DOM nodes
+- **With key**: O(log n) - Moves/inserts/removes specific nodes
+
+<Steps>
+  1. **Choose unique keys** - Use `item.id`, not array index
+  2. **Use primitives** - Strings/numbers are better than objects
+  3. **Keep keys stable** - Don't recreate keys on each render
+</Steps>
+
+### Avoid Index as Key
+
+```svelte
+<script>
+  let items = $state(['A', 'B', 'C']);
+  
+  function removeFirst() {
+    items = items.slice(1); // Now ['B', 'C']
+  }
+</script>
+
+<!-- ❌ Bad: Index changes when items are removed -->
+{#each items as item, i (i)}
+  <div>{item}</div>
+{/each}
+<!-- After removal: 'B' gets index 0, 'C' gets index 1 -->
+<!-- Svelte thinks these are NEW items -->
+
+<!-- ✅ Good: Use stable identifier -->
+{#each items as item (item)}
+  <div>{item}</div>
+{/each}
+```
+
+### Minimize Component Re-renders
+
+Prevent unnecessary work by isolating reactive dependencies:
+
+```svelte
+<!-- ❌ Bad: Entire component re-renders when count changes -->
+<script>
+  let count = $state(0);
+  let expensiveData = $state([...large dataset]);
+</script>
+
+<button onclick={() => count++}>{count}</button>
+<ExpensiveList items={expensiveData} />
+
+<!-- ✅ Better: Isolate reactive scope -->
+<script>
+  let count = $state(0);
+  let expensiveData = $state([...large dataset]);
+</script>
+
+<div>
+  <button onclick={() => count++}>{count}</button>
+</div>
+<ExpensiveList items={expensiveData} />
+```
+
+## Component Design Patterns
+
+### Extract Expensive Logic
+
+Move expensive computations to dedicated components:
+
+```svelte
+<!-- ❌ Bad: All logic in one component -->
+<script>
+  let items = $state([...]);
+  let filter = $state('');
+  
+  let processed = $derived(
+    items
+      .filter(item => item.name.includes(filter))
+      .map(item => expensiveTransform(item))
+      .sort((a, b) => a.score - b.score)
+  );
+</script>
+
+{#each processed as item (item.id)}
+  <div>{item.name}</div>
+{/each}
+
+<!-- ✅ Better: Separate concerns -->
+<script>
+  import ItemList from './ItemList.svelte';
+  
+  let items = $state([...]);
+  let filter = $state('');
+</script>
+
+<ItemList {items} {filter} />
+```
+
+### Use Event Delegation
+
+For many similar elements, use event delegation:
+
+```svelte
+<!-- ❌ Bad: N event listeners -->
+{#each items as item (item.id)}
+  <button onclick={() => handleClick(item.id)}>
+    {item.name}
+  </button>
+{/each}
+
+<!-- ✅ Better: One event listener -->
+<div onclick={(e) => {
+  const id = e.target.dataset.id;
+  if (id) handleClick(id);
+}}>
+  {#each items as item (item.id)}
+    <button data-id={item.id}>{item.name}</button>
+  {/each}
+</div>
+```
+
+### Avoid Inline Object/Array Creation
+
+```svelte
+<!-- ❌ Bad: Creates new object every render -->
+<Component style={{ color: 'red', fontSize: '16px' }} />
+
+<!-- ✅ Good: Reuses same object -->
+<script>
+  const buttonStyle = { color: 'red', fontSize: '16px' };
+</script>
+<Component style={buttonStyle} />
+```
+
+## Bundle Size Optimization
+
+### Code Splitting with Dynamic Imports
+
+Lazy load components that aren't immediately needed:
+
+```svelte
+<script>
+  let showModal = $state(false);
+  let Modal;
+  
+  async function openModal() {
+    if (!Modal) {
+      const module = await import('./Modal.svelte');
+      Modal = module.default;
+    }
+    showModal = true;
+  }
+</script>
+
+<button onclick={openModal}>Open Modal</button>
+
+{#if showModal && Modal}
+  <Modal />
+{/if}
+```
+
+### Tree Shaking
+
+Import only what you need:
+
+```js
+// ❌ Bad: Imports entire library
+import _ from 'lodash';
+const result = _.debounce(fn, 300);
+
+// ✅ Good: Imports only debounce
+import { debounce } from 'lodash-es';
+const result = debounce(fn, 300);
+```
+
+### Analyze Bundle Size
+
+Use tools to find optimization opportunities:
+
+```bash
+# Install bundle analyzer
+npm install -D rollup-plugin-visualizer
+
+# Add to vite.config.js
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default {
+  plugins: [
+    visualizer({ open: true })
+  ]
+};
+```
+
+## Advanced Optimizations
+
+### Virtual Lists for Large Datasets
+
+For thousands of items, render only visible rows:
+
+```svelte
+<script>
+  import { VirtualList } from 'svelte-virtual-list';
+  
+  let items = $state([...10000 items]);
+</script>
+
+<VirtualList items={items} let:item>
+  <div>{item.name}</div>
+</VirtualList>
+```
+
+### Debounce Expensive Operations
+
+```svelte
+<script>
+  import { debounce } from './utils';
+  
+  let searchTerm = $state('');
+  let results = $state([]);
+  
+  const search = debounce(async (term) => {
+    results = await fetch(`/api/search?q=${term}`).then(r => r.json());
+  }, 300);
+  
+  $effect(() => {
+    if (searchTerm) search(searchTerm);
+  });
+</script>
+
+<input bind:value={searchTerm} placeholder="Search..." />
+```
+
+### Memoize Complex Computations
+
+```svelte
+<script>
+  let data = $state([...]);
+  
+  // Cache expensive computation
+  let cache = new Map();
+  
+  let processed = $derived.by(() => {
+    const key = JSON.stringify(data);
+    if (cache.has(key)) return cache.get(key);
+    
+    const result = expensiveComputation(data);
+    cache.set(key, result);
+    return result;
+  });
+</script>
+```
+
+## Image and Asset Optimization
+
+### Lazy Load Images
+
+```svelte
+<img 
+  src="placeholder.jpg" 
+  data-src="high-res.jpg" 
+  loading="lazy"
+  alt="Description"
+/>
+```
+
+### Use Modern Formats
+
+```svelte
+<picture>
+  <source srcset="image.avif" type="image/avif" />
+  <source srcset="image.webp" type="image/webp" />
+  <img src="image.jpg" alt="Fallback" />
+</picture>
+```
+
+## Profiling and Measurement
+
+### Use Browser DevTools
+
+<Steps>
+  1. Open Chrome DevTools Performance tab
+  2. Record interaction (click, scroll, etc.)
+  3. Analyze flame graph for slow operations
+  4. Look for long tasks and excessive re-renders
+</Steps>
+
+### Use `$inspect.trace`
+
+Debug reactive dependencies:
+
+```svelte
+<script>
+  let items = $state([...]);
+  
+  $effect(() => {
+    $inspect.trace('items effect'); // First line of effect
+    console.log('Items changed:', items.length);
+  });
+  // Logs what triggered this effect to re-run
+</script>
+```
+
+## Best Practices Checklist
+
+<Steps>
+  1. **Use keyed `{#each}` blocks** for all lists
+  2. **Avoid `$state` for constants** - use plain variables
+  3. **Prefer `$derived` over `$effect`** for computed values
+  4. **Use `$state.raw` for large objects** that are only reassigned
+  5. **Lazy load large components** with dynamic imports
+  6. **Debounce user input** for expensive operations
+  7. **Profile before optimizing** - measure, don't guess
+  8. **Extract expensive logic** to dedicated components
+  9. **Use virtual lists** for >1000 items
+  10. **Optimize images** with lazy loading and modern formats
+</Steps>
+
+## Common Performance Pitfalls
+
+<Warning>
+**Avoid these patterns:**
+
+- Using array index as `{#each}` key
+- Creating objects/arrays in templates: `style={{ color }}`
+- Making everything `$state` "just in case"
+- Using `$effect` for derived values
+- Not profiling before optimizing
+- Premature optimization without measurements
+</Warning>
+
+<Tip>
+Svelte is already very fast. Focus on **correctness first**, then optimize bottlenecks identified through profiling.
+</Tip>

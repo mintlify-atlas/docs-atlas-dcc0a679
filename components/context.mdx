@@ -1,0 +1,438 @@
+---
+title: Context API
+description: Sharing data between components using Svelte's Context API
+---
+
+Context allows components to share data with their descendants without passing props through every level of the component tree, solving the "prop drilling" problem.
+
+## Basic Context Usage
+
+The parent component sets context with `setContext(key, value)`:
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  
+  setContext('my-context', 'hello from Parent.svelte');
+</script>
+```
+
+The child component retrieves it with `getContext(key)`:
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getContext } from 'svelte';
+  
+  const message = getContext('my-context');
+</script>
+
+<h1>{message}, inside Child.svelte</h1>
+```
+
+<Steps>
+
+### Setting Context
+
+Context must be set during component initialization:
+
+```svelte
+<script>
+  import { setContext } from 'svelte';
+  import Child from './Child.svelte';
+  
+  const config = {
+    apiUrl: 'https://api.example.com',
+    theme: 'dark'
+  };
+  
+  setContext('app-config', config);
+</script>
+
+<Child />
+```
+
+### Getting Context
+
+Retrieve context in any descendant component:
+
+```svelte
+<script>
+  import { getContext } from 'svelte';
+  
+  const config = getContext('app-config');
+</script>
+
+<div class="{config.theme}">
+  API: {config.apiUrl}
+</div>
+```
+
+### Checking Context
+
+Check if context exists before using it:
+
+```svelte
+<script>
+  import { hasContext, getContext } from 'svelte';
+  
+  const hasConfig = hasContext('app-config');
+  const config = hasConfig ? getContext('app-config') : null;
+</script>
+
+{#if config}
+  <div>Config available: {config.theme}</div>
+{:else}
+  <div>No config found</div>
+{/if}
+```
+
+</Steps>
+
+## Context with Reactive State
+
+Store reactive state in context to share it across components:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import Child from './Child.svelte';
+  
+  let counter = $state({ count: 0 });
+  
+  setContext('counter', counter);
+</script>
+
+<button onclick={() => counter.count += 1}>
+  increment
+</button>
+
+<Child />
+<Child />
+<Child />
+```
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getContext } from 'svelte';
+  
+  const counter = getContext('counter');
+</script>
+
+<p>Count: {counter.count}</p>
+```
+
+### Important: Reassignment vs Mutation
+
+Don't reassign the context object - mutate its properties instead:
+
+```svelte
+<script>
+  import { setContext } from 'svelte';
+  
+  let counter = $state({ count: 0 });
+  setContext('counter', counter);
+</script>
+
+<!-- ❌ This breaks the link -->
+<button onclick={() => counter = { count: 0 }}>
+  reset
+</button>
+
+<!-- ✅ This works -->
+<button onclick={() => counter.count = 0}>
+  reset
+</button>
+```
+
+## Type-Safe Context
+
+Use `createContext` for type-safe context without explicit keys:
+
+```ts
+// context.ts
+import { createContext } from 'svelte';
+
+interface User {
+  name: string;
+  email: string;
+  role: string;
+}
+
+export const [getUserContext, setUserContext] = createContext<User>();
+```
+
+```svelte
+<!-- App.svelte -->
+<script lang="ts">
+  import { setUserContext } from './context';
+  import Child from './Child.svelte';
+  
+  setUserContext({
+    name: 'Alice',
+    email: 'alice@example.com',
+    role: 'admin'
+  });
+</script>
+
+<Child />
+```
+
+```svelte
+<!-- Child.svelte -->
+<script lang="ts">
+  import { getUserContext } from './context';
+  
+  const user = getUserContext();
+</script>
+
+<div>
+  <h2>{user.name}</h2>
+  <p>{user.email}</p>
+  <p>Role: {user.role}</p>
+</div>
+```
+
+## Context API Functions
+
+### setContext(key, context)
+
+Associates a context object with the current component:
+
+```svelte
+<script>
+  import { setContext } from 'svelte';
+  
+  const theme = $state({
+    primary: '#ff3e00',
+    secondary: '#676778'
+  });
+  
+  setContext('theme', theme);
+</script>
+```
+
+- Must be called during component initialization
+- Returns the context value
+- Available to all descendants, including slotted content
+
+### getContext(key)
+
+Retrieves context from the closest parent with the specified key:
+
+```svelte
+<script>
+  import { getContext } from 'svelte';
+  
+  const theme = getContext('theme');
+</script>
+
+<div style="color: {theme.primary}">
+  Themed content
+</div>
+```
+
+- Must be called during component initialization
+- Returns the context value or `undefined`
+- Looks up the component tree to find the context
+
+### hasContext(key)
+
+Checks if a context key exists:
+
+```svelte
+<script>
+  import { hasContext, getContext } from 'svelte';
+  
+  let theme;
+  if (hasContext('theme')) {
+    theme = getContext('theme');
+  } else {
+    theme = { primary: '#000', secondary: '#999' };
+  }
+</script>
+```
+
+### getAllContexts()
+
+Retrieves the entire context map:
+
+```svelte
+<script>
+  import { getAllContexts } from 'svelte';
+  
+  const contexts = getAllContexts();
+  
+  // Useful for passing context to programmatically created components
+</script>
+```
+
+## Context for Dependency Injection
+
+Context is perfect for dependency injection patterns:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import Dashboard from './Dashboard.svelte';
+  
+  class ApiService {
+    async fetchData(endpoint) {
+      const response = await fetch(`https://api.example.com/${endpoint}`);
+      return response.json();
+    }
+  }
+  
+  const api = new ApiService();
+  setContext('api', api);
+</script>
+
+<Dashboard />
+```
+
+```svelte
+<!-- Dashboard.svelte -->
+<script>
+  import { getContext, onMount } from 'svelte';
+  
+  const api = getContext('api');
+  let data = $state(null);
+  
+  onMount(async () => {
+    data = await api.fetchData('dashboard');
+  });
+</script>
+
+{#if data}
+  <div>{data.title}</div>
+{/if}
+```
+
+## Context vs Global State
+
+Context solves the problem of global state in server-side rendering:
+
+```svelte
+<!-- ❌ Risky: Global state can leak between requests -->
+<script>
+  import { myGlobalState } from './state.svelte.js';
+  
+  let { data } = $props();
+  
+  if (data.user) {
+    myGlobalState.user = data.user; // Mutation during SSR!
+  }
+</script>
+```
+
+```svelte
+<!-- ✅ Safe: Context is request-scoped -->
+<script>
+  import { setContext } from 'svelte';
+  
+  let { data } = $props();
+  
+  if (data.user) {
+    setContext('user', data.user); // Each request gets its own context
+  }
+</script>
+```
+
+## Context with Stores
+
+Combine context with stores for shared reactive state:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import { writable } from 'svelte/store';
+  import Child from './Child.svelte';
+  
+  const notifications = writable([]);
+  
+  setContext('notifications', {
+    subscribe: notifications.subscribe,
+    add: (message) => {
+      notifications.update(n => [...n, message]);
+    },
+    clear: () => notifications.set([])
+  });
+</script>
+
+<Child />
+```
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getContext } from 'svelte';
+  
+  const notifications = getContext('notifications');
+  
+  function notify() {
+    notifications.add('Hello from child!');
+  }
+</script>
+
+<button onclick={notify}>Send Notification</button>
+
+<ul>
+  {#each $notifications as notification}
+    <li>{notification}</li>
+  {/each}
+</ul>
+```
+
+## Testing with Context
+
+Create wrapper components for testing:
+
+```js
+import { mount, unmount } from 'svelte';
+import { expect, test } from 'vitest';
+import { setUserContext } from './context';
+import MyComponent from './MyComponent.svelte';
+
+test('MyComponent', () => {
+  function Wrapper(...args) {
+    setUserContext({ name: 'Bob' });
+    return MyComponent(...args);
+  }
+  
+  const component = mount(Wrapper, {
+    target: document.body
+  });
+  
+  expect(document.body.innerHTML).toBe('<h1>Hello Bob!</h1>');
+  
+  unmount(component);
+});
+```
+
+## Best Practices
+
+1. **Use unique keys** - Avoid key collisions by using symbols or unique strings
+2. **Set during initialization** - Context must be set during component setup
+3. **Document context contracts** - Make it clear what context keys are available
+4. **Prefer type-safe context** - Use `createContext` for better type safety
+5. **Don't overuse** - Context is not a replacement for props
+6. **Consider scope** - Context is available to all descendants, not just direct children
+
+```svelte
+<script>
+  import { setContext } from 'svelte';
+  
+  // Use symbols for truly unique keys
+  const THEME_KEY = Symbol('theme');
+  
+  setContext(THEME_KEY, {
+    mode: 'dark',
+    colors: { primary: '#ff3e00' }
+  });
+</script>
+```

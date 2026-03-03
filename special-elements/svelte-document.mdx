@@ -1,0 +1,159 @@
+---
+title: '<svelte:document>'
+description: 'Add event listeners and bindings to the document object'
+---
+
+```svelte
+<svelte:document onevent={handler} />
+```
+
+```svelte
+<svelte:document bind:prop={value} />
+```
+
+Similarly to `<svelte:window>`, this element allows you to add listeners to events on `document`, such as `visibilitychange`, which don't fire on `window`. It also lets you use attachments on `document`.
+
+<Note>
+As with `<svelte:window>`, this element may only appear at the top level of your component and must never be inside a block or element.
+</Note>
+
+## Event Listeners
+
+You can add any valid document event listener:
+
+```svelte
+<script>
+  function handleVisibilityChange() {
+    console.log(document.hidden ? 'hidden' : 'visible');
+  }
+</script>
+
+<svelte:document onvisibilitychange={handleVisibilityChange} />
+```
+
+### Common document events
+
+- `onvisibilitychange` - Document visibility changes
+- `onfullscreenchange` - Fullscreen mode changes
+- `onpointerlockchange` - Pointer lock state changes
+- `onselectionchange` - Text selection changes
+- `onkeydown` - Key is pressed (anywhere in document)
+- `onkeyup` - Key is released
+- `onclick` - Click anywhere in document
+
+## Bindings
+
+You can bind to the following document properties (all are readonly):
+
+<ParamField path="activeElement" type="Element" readonly>
+  The element that currently has focus.
+</ParamField>
+
+<ParamField path="fullscreenElement" type="Element | null" readonly>
+  The element currently displayed in fullscreen mode, or `null` if no element is in fullscreen.
+</ParamField>
+
+<ParamField path="pointerLockElement" type="Element | null" readonly>
+  The element that currently has the pointer locked, or `null` if pointer is not locked.
+</ParamField>
+
+<ParamField path="visibilityState" type="string" readonly>
+  The visibility state of the document. Possible values: `"visible"`, `"hidden"`.
+</ParamField>
+
+## Usage
+
+### Track document visibility
+
+```svelte
+<script>
+  let visibilityState = $state('');
+  
+  function handleVisibilityChange() {
+    console.log('Visibility changed to:', visibilityState);
+  }
+</script>
+
+<svelte:document 
+  bind:visibilityState
+  onvisibilitychange={handleVisibilityChange}
+/>
+
+<p>Page is {visibilityState}</p>
+```
+
+### Track active element
+
+```svelte
+<script>
+  let activeElement = $state(null);
+</script>
+
+<svelte:document bind:activeElement />
+
+<p>Active element: {activeElement?.tagName}</p>
+
+<input placeholder="Focus me" />
+<button>Or click me</button>
+```
+
+### Fullscreen detection
+
+```svelte
+<script>
+  let fullscreenElement = $state(null);
+  let isFullscreen = $derived(fullscreenElement !== null);
+</script>
+
+<svelte:document bind:fullscreenElement />
+
+{#if isFullscreen}
+  <p>Currently in fullscreen mode</p>
+{:else}
+  <p>Not in fullscreen</p>
+{/if}
+```
+
+### Global keyboard shortcuts
+
+```svelte
+<script>
+  function handleKeydown(event) {
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      console.log('Save triggered');
+    }
+  }
+</script>
+
+<svelte:document onkeydown={handleKeydown} />
+```
+
+### Using attachments
+
+```svelte
+<script>
+  import { someAttachment } from './attachments.js';
+</script>
+
+<svelte:document {@attach someAttachment} />
+```
+
+### Pause video when page is hidden
+
+```svelte
+<script>
+  let video;
+  let visibilityState = $state('visible');
+  
+  $effect(() => {
+    if (visibilityState === 'hidden' && video) {
+      video.pause();
+    }
+  });
+</script>
+
+<svelte:document bind:visibilityState />
+
+<video bind:this={video} src="video.mp4" controls />
+```

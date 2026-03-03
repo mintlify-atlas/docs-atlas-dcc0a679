@@ -1,0 +1,58 @@
+---
+title: blur
+description: API reference for the blur transition in Svelte
+---
+
+Animates a `blur` filter alongside an element's opacity. Creates a smooth blur effect as the element transitions in or out.
+
+## Usage
+
+```svelte
+<script>
+	import { blur } from 'svelte/transition';
+</script>
+
+<div transition:blur>blurs in and out</div>
+
+<div in:blur>blurs in</div>
+
+<div out:blur>blurs out</div>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number" default="400">
+  Duration of the transition in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicInOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+<ParamField path="amount" type="number | string" default="5">
+  The blur amount. Can be a number (pixels) or a CSS length string (e.g., '10px', '1rem')
+</ParamField>
+
+<ParamField path="opacity" type="number" default="0">
+  The target opacity value (between 0 and 1) when the element is fully transitioned out
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { blur } from 'svelte/transition';
+</script>
+
+<div transition:blur={{ amount: 10, duration: 600 }}>
+	blurs with stronger effect
+</div>
+
+<div transition:blur={{ amount: '2rem', opacity: 0.5 }}>
+	blurs to semi-transparent
+</div>
+```

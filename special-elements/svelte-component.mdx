@@ -1,0 +1,86 @@
+---
+title: '<svelte:component>'
+description: 'Dynamic component rendering in Svelte (legacy mode)'
+---
+
+```svelte
+<svelte:component this={MyComponent} />
+```
+
+<Note>
+In Svelte 5+ runes mode, `<svelte:component>` is deprecated. Components are dynamic by default, so you can simply use `<MyComponent>` directly and it will re-render when the component value changes.
+</Note>
+
+In legacy mode, components are static — if you render `<Thing>`, and the value of `Thing` changes, nothing happens. To make it dynamic you must use `<svelte:component>`, which destroys and recreates the component instance when the value of its `this` expression changes.
+
+## Attributes
+
+<ParamField path="this" type="Component" required>
+  The component constructor to render. When this value changes, the component instance is destroyed and recreated.
+  
+  If `this` is falsy, no component is rendered.
+</ParamField>
+
+## Usage
+
+### Basic dynamic component
+
+```svelte
+<script>
+  import ComponentA from './ComponentA.svelte';
+  import ComponentB from './ComponentB.svelte';
+  
+  let selected = $state('a');
+  let component = $derived(selected === 'a' ? ComponentA : ComponentB);
+</script>
+
+<svelte:component this={component} />
+```
+
+### With props
+
+You can pass props to the dynamic component like any other component:
+
+```svelte
+<script>
+  import Red from './Red.svelte';
+  import Blue from './Blue.svelte';
+  
+  let color = $state('red');
+  let component = $derived(color === 'red' ? Red : Blue);
+</script>
+
+<svelte:component this={component} name="World" />
+```
+
+### Conditional rendering
+
+When `this` is `null` or `undefined`, no component is rendered:
+
+```svelte
+<script>
+  let component = $state(null);
+</script>
+
+<svelte:component this={component} />
+<!-- Nothing is rendered -->
+```
+
+## Migration to Svelte 5
+
+In Svelte 5 runes mode, you can use components directly without `<svelte:component>`:
+
+```svelte
+<script>
+  import ComponentA from './ComponentA.svelte';
+  import ComponentB from './ComponentB.svelte';
+  
+  let selected = $state('a');
+  let Component = $derived(selected === 'a' ? ComponentA : ComponentB);
+</script>
+
+<!-- No svelte:component needed -->
+<Component />
+```
+
+See the [Svelte 5 migration guide](https://svelte.dev/docs/svelte/v5-migration-guide#svelte:component-is-no-longer-necessary) for more details.

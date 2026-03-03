@@ -1,0 +1,63 @@
+---
+title: scale
+description: API reference for the scale transition in Svelte
+---
+
+Animates the opacity and scale of an element. `in` transitions animate from the provided values to an element's default values. `out` transitions animate from an element's default values to the provided values.
+
+## Usage
+
+```svelte
+<script>
+	import { scale } from 'svelte/transition';
+</script>
+
+<div transition:scale>scales in and out</div>
+
+<div in:scale>scales in</div>
+
+<div out:scale>scales out</div>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number" default="400">
+  Duration of the transition in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+<ParamField path="start" type="number" default="0">
+  The scale value to animate from/to (where 1 is the element's natural size). A value of 0 makes the element invisible, 0.5 makes it half-size, and 2 makes it double-size
+</ParamField>
+
+<ParamField path="opacity" type="number" default="0">
+  The target opacity value (between 0 and 1) when the element is fully transitioned out
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { scale } from 'svelte/transition';
+	import { backOut } from 'svelte/easing';
+</script>
+
+<div transition:scale={{ start: 0.5, duration: 600 }}>
+	scales from 50% size
+</div>
+
+<div in:scale={{ start: 2, easing: backOut }}>
+	scales down from 200% with bounce
+</div>
+
+<div out:scale={{ start: 0.7, opacity: 0.5 }}>
+	scales to 70% while fading
+</div>
+```

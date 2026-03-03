@@ -1,0 +1,47 @@
+---
+title: What are runes?
+description: Understanding Svelte runes - symbols that control the Svelte compiler
+---
+
+> **rune** /ruːn/ _noun_
+>
+> A letter or mark used as a mystical or magic symbol.
+
+Runes are symbols that you use in `.svelte` and `.svelte.js`/`.svelte.ts` files to control the Svelte compiler. If you think of Svelte as a language, runes are part of the syntax — they are _keywords_.
+
+Runes have a `$` prefix and look like functions:
+
+```js
+let message = $state('hello');
+```
+
+## How runes differ from functions
+
+They differ from normal JavaScript functions in important ways:
+
+- **You don't need to import them** — they are part of the language
+- **They're not values** — you can't assign them to a variable or pass them as arguments to a function
+- **Just like JavaScript keywords**, they are only valid in certain positions (the compiler will help you if you put them in the wrong place)
+
+## Available runes
+
+Svelte provides the following runes:
+
+### State and reactivity
+- [`$state`](/runes/state) - Declares reactive state
+- [`$derived`](/runes/derived) - Declares derived state that depends on other state
+- [`$effect`](/runes/effect) - Runs side effects when state changes
+
+### Component props
+- [`$props`](/runes/props) - Declares component props
+- [`$bindable`](/runes/bindable) - Marks a prop as bindable
+
+### Development and debugging
+- [`$inspect`](/runes/inspect) - Logs reactive values when they change
+
+### Custom elements
+- [`$host`](/runes/host) - Provides access to the custom element host
+
+<Note>
+Runes didn't exist prior to Svelte 5. They represent a new paradigm for declaring reactivity in Svelte.
+</Note>

@@ -1,0 +1,138 @@
+---
+title: getContext()
+description: Retrieve the context that belongs to the closest parent component with the specified key.
+---
+
+Retrieves the context that belongs to the closest parent component with the specified `key`. Must be called during component initialisation.
+
+[`createContext`](https://svelte.dev/docs/svelte/svelte#createContext) is a type-safe alternative.
+
+## Signature
+
+```ts
+function getContext<T>(key: any): T
+```
+
+## Parameters
+
+<ParamField path="key" type="any" required>
+  The key used by a parent component when calling `setContext`. This should match exactly the key used in the parent.
+</ParamField>
+
+## Returns
+
+<ResponseField name="context" type="T">
+  Returns the context object that was set by a parent component, or `undefined` if no parent has set a context with this key.
+</ResponseField>
+
+## Example
+
+### Parent Component
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import Child from './Child.svelte';
+
+  setContext('api', {
+    baseUrl: 'https://api.example.com',
+    async fetch(endpoint) {
+      const response = await fetch(this.baseUrl + endpoint);
+      return response.json();
+    }
+  });
+</script>
+
+<Child />
+```
+
+### Child Component
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getContext } from 'svelte';
+
+  const api = getContext('api');
+
+  let data = $state(null);
+
+  async function loadData() {
+    data = await api.fetch('/users');
+  }
+
+  $effect(() => {
+    loadData();
+  });
+</script>
+
+{#if data}
+  <ul>
+    {#each data as user}
+      <li>{user.name}</li>
+    {/each}
+  </ul>
+{/if}
+```
+
+### Nested Child Component
+
+```svelte
+<!-- GrandChild.svelte -->
+<script>
+  import { getContext } from 'svelte';
+
+  // Can access context from any ancestor component
+  const api = getContext('api');
+</script>
+
+<p>API Base URL: {api.baseUrl}</p>
+```
+
+## Type-Safe Context
+
+For better type safety, use `createContext`:
+
+```ts
+// context.ts
+import { createContext } from 'svelte';
+
+interface API {
+  baseUrl: string;
+  fetch(endpoint: string): Promise<any>;
+}
+
+export const [getAPI, setAPI] = createContext<API>();
+```
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setAPI } from './context';
+  
+  setAPI({
+    baseUrl: 'https://api.example.com',
+    async fetch(endpoint) {
+      const response = await fetch(this.baseUrl + endpoint);
+      return response.json();
+    }
+  });
+</script>
+```
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { getAPI } from './context';
+  
+  const api = getAPI(); // Fully typed!
+</script>
+```
+
+## Notes
+
+- Must be called during component initialisation (not in callbacks or effects)
+- Returns `undefined` if no parent component has set a context with the given key
+- Use `hasContext` to check if a context exists before calling `getContext`
+- Context lookup traverses up the component tree until it finds a matching key

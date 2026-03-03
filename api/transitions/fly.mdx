@@ -1,0 +1,63 @@
+---
+title: fly
+description: API reference for the fly transition in Svelte
+---
+
+Animates the x and y positions and the opacity of an element. `in` transitions animate from the provided values to the element's default values. `out` transitions animate from the element's default values to the provided values.
+
+## Usage
+
+```svelte
+<script>
+	import { fly } from 'svelte/transition';
+</script>
+
+<div transition:fly={{ y: 200 }}>flies in and out</div>
+
+<div in:fly={{ x: -200 }}>flies in from the left</div>
+
+<div out:fly={{ y: -200 }}>flies out upward</div>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number" default="400">
+  Duration of the transition in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+<ParamField path="x" type="number | string" default="0">
+  The horizontal offset to animate from/to. Can be a number (pixels) or a CSS length string (e.g., '100px', '50vw')
+</ParamField>
+
+<ParamField path="y" type="number | string" default="0">
+  The vertical offset to animate from/to. Can be a number (pixels) or a CSS length string (e.g., '100px', '50vh')
+</ParamField>
+
+<ParamField path="opacity" type="number" default="0">
+  The target opacity value (between 0 and 1) when the element is fully transitioned out
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { fly } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+</script>
+
+<div in:fly={{ y: 200, duration: 1000, easing: quintOut }}>
+	flies in from below
+</div>
+
+<div in:fly={{ x: '100vw', opacity: 0.5 }}>
+	flies in from right edge
+</div>
+```

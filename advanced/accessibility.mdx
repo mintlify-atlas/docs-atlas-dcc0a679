@@ -1,0 +1,374 @@
+---
+title: Accessibility (A11y)
+description: Comprehensive guide to Svelte's accessibility features, warnings, and best practices for building inclusive web applications
+---
+
+Svelte has built-in accessibility (a11y) features that help you create inclusive applications. The compiler analyzes your markup and provides warnings for common accessibility issues at build time.
+
+## Compiler Warnings
+
+Svelte's compiler catches potential accessibility mistakes during development, helping you fix issues before they reach production.
+
+### Disabling Warnings
+
+If a warning is a false positive for your use case, disable it with a comment:
+
+```svelte
+<!-- svelte-ignore a11y_autofocus -->
+<input autofocus />
+```
+
+You can list multiple rules and add explanatory notes:
+
+```svelte
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (intentional for this interactive demo) -->
+<div onclick={handleClick}>Click me</div>
+```
+
+## Common Accessibility Warnings
+
+### Interactive Elements
+
+#### Click Events Need Keyboard Support
+
+**Warning**: `a11y_click_events_have_key_events`
+
+Visible, non-interactive elements with click handlers must also support keyboard interaction:
+
+```svelte
+<!-- ❌ Bad: No keyboard support -->
+<div onclick={() => handleClick()}>Click me</div>
+
+<!-- ✅ Good: Button is inherently keyboard accessible -->
+<button onclick={() => handleClick()}>Click me</button>
+
+<!-- ✅ Good: Added keyboard handler and tabindex -->
+<div 
+  onclick={() => handleClick()}
+  onkeydown={(e) => e.key === 'Enter' && handleClick()}
+  role="button"
+  tabindex="0"
+>
+  Click me
+</div>
+```
+
+<Tip>
+Prefer semantic HTML elements like `<button>` and `<a>` over `<div>` with event handlers. They have built-in keyboard support and better screen reader compatibility.
+</Tip>
+
+#### Mouse Events Need Focus Events
+
+**Warning**: `a11y_mouse_events_have_key_events`
+
+`onmouseover` and `onmouseout` must be accompanied by `onfocus` and `onblur`:
+
+```svelte
+<!-- ❌ Bad -->
+<div onmouseover={handleMouseover} />
+
+<!-- ✅ Good -->
+<div 
+  onmouseover={handleMouseover}
+  onfocus={handleMouseover}
+  onmouseout={handleMouseout}
+  onblur={handleMouseout}
+/>
+```
+
+### ARIA Attributes
+
+#### Required ARIA Properties
+
+**Warning**: `a11y_role_has_required_aria_props`
+
+Elements with ARIA roles must have all required attributes:
+
+```svelte
+<!-- ❌ Bad: Missing aria-checked -->
+<span role="checkbox" tabindex="0"></span>
+
+<!-- ✅ Good -->
+<span role="checkbox" aria-checked="false" tabindex="0"></span>
+```
+
+#### Supported ARIA Properties
+
+**Warning**: `a11y_role_supports_aria_props`
+
+Only use ARIA attributes supported by an element's role:
+
+```svelte
+<!-- ❌ Bad: aria-multiline not supported on link role -->
+<div role="link" aria-multiline></div>
+
+<!-- ✅ Good -->
+<div role="textbox" aria-multiline></div>
+```
+
+#### Correct ARIA Attribute Types
+
+**Warning**: `a11y_incorrect_aria_attribute_type`
+
+ARIA attributes must have the correct value type:
+
+```svelte
+<!-- ❌ Bad: Must be exactly 'true' or 'false' -->
+<div aria-hidden="yes"></div>
+
+<!-- ✅ Good -->
+<div aria-hidden="true"></div>
+```
+
+### Form Elements
+
+#### Labels for Form Controls
+
+**Warning**: `a11y_label_has_associated_control`
+
+Label tags must be associated with a control:
+
+```svelte
+<!-- ❌ Bad: No associated control -->
+<label>Name</label>
+
+<!-- ✅ Good: Using 'for' attribute -->
+<label for="name">Name</label>
+<input id="name" type="text" />
+
+<!-- ✅ Good: Wrapping the control -->
+<label>
+  Name
+  <input type="text" />
+</label>
+```
+
+### Images and Media
+
+#### Alternative Text for Images
+
+**Warning**: `a11y_missing_attribute`
+
+Images must have alt text:
+
+```svelte
+<!-- ❌ Bad: No alt attribute -->
+<img src="photo.jpg" />
+
+<!-- ✅ Good -->
+<img src="photo.jpg" alt="A sunset over the mountains" />
+
+<!-- ✅ Good: Empty alt for decorative images -->
+<img src="decoration.svg" alt="" />
+```
+
+<Note>
+Use empty `alt=""` for purely decorative images so screen readers skip them.
+</Note>
+
+#### Avoid Redundant Alt Text
+
+**Warning**: `a11y_img_redundant_alt`
+
+Don't include words like "image", "photo", or "picture" in alt text:
+
+```svelte
+<!-- ❌ Bad: Screen readers already announce it's an image -->
+<img src="cat.jpg" alt="Picture of a cat" />
+
+<!-- ✅ Good -->
+<img src="cat.jpg" alt="A tabby cat sleeping" />
+```
+
+#### Captions for Video
+
+**Warning**: `a11y_media_has_caption`
+
+Video elements must include captions:
+
+```svelte
+<!-- ❌ Bad: No captions -->
+<video src="movie.mp4"></video>
+
+<!-- ✅ Good -->
+<video src="movie.mp4">
+  <track kind="captions" src="captions.vtt" />
+</video>
+
+<!-- ✅ Good: Muted videos don't need captions -->
+<video src="ambient.mp4" muted></video>
+```
+
+### Semantic HTML
+
+#### Avoid Distracting Elements
+
+**Warning**: `a11y_distracting_elements`
+
+Avoid deprecated elements that cause accessibility issues:
+
+```svelte
+<!-- ❌ Bad: Marquee is distracting for users with motion sensitivity -->
+<marquee>Scrolling text</marquee>
+
+<!-- ✅ Good: Use CSS animations with prefers-reduced-motion -->
+<div class="announcement">Important message</div>
+```
+
+#### Don't Hide Important Elements
+
+**Warning**: `a11y_hidden`
+
+Headings and landmarks shouldn't be hidden from screen readers:
+
+```svelte
+<!-- ❌ Bad: Hides navigation structure -->
+<h2 aria-hidden="true">Section Title</h2>
+
+<!-- ✅ Good: Keep headings visible to assistive technology -->
+<h2>Section Title</h2>
+```
+
+#### Proper HTML Structure
+
+**Warning**: `a11y_figcaption_parent`, `a11y_figcaption_index`
+
+`<figcaption>` must be the first or last child of `<figure>`:
+
+```svelte
+<!-- ❌ Bad: Wrong parent -->
+<div>
+  <figcaption>Chart showing sales data</figcaption>
+</div>
+
+<!-- ✅ Good -->
+<figure>
+  <img src="chart.png" alt="" />
+  <figcaption>Chart showing sales data</figcaption>
+</figure>
+```
+
+### Focus Management
+
+#### Avoid Autofocus
+
+**Warning**: `a11y_autofocus`
+
+Autofocusing can disorient users:
+
+```svelte
+<!-- ❌ Avoid: Can be disorienting -->
+<input autofocus />
+
+<!-- ✅ Better: Let users control focus -->
+<input />
+```
+
+<Warning>
+Only use autofocus when it's the primary expected action and won't surprise users.
+</Warning>
+
+#### Positive Tabindex
+
+**Warning**: `a11y_positive_tabindex`
+
+Avoid positive tabindex values:
+
+```svelte
+<!-- ❌ Bad: Disrupts natural tab order -->
+<div tabindex="1">First</div>
+<div tabindex="2">Second</div>
+
+<!-- ✅ Good: Use natural DOM order -->
+<button>First</button>
+<button>Second</button>
+
+<!-- ✅ Good: Use tabindex="0" to add to tab order -->
+<div role="button" tabindex="0">Clickable</div>
+```
+
+#### Interactive Roles Must Be Focusable
+
+**Warning**: `a11y_interactive_supports_focus`
+
+Elements with interactive roles need tabindex:
+
+```svelte
+<!-- ❌ Bad: Button role but not focusable -->
+<div role="button" onclick={() => {}}>Click</div>
+
+<!-- ✅ Good -->
+<div role="button" tabindex="0" onclick={() => {}}>Click</div>
+```
+
+## ARIA Integration
+
+Svelte uses the [`aria-query`](https://www.npmjs.com/package/aria-query) package to validate ARIA usage, ensuring compliance with the [WAI-ARIA specification](https://www.w3.org/TR/wai-aria-1.1/).
+
+### Valid ARIA Roles
+
+**Warning**: `a11y_unknown_role`
+
+Only use valid ARIA roles:
+
+```svelte
+<!-- ❌ Bad: Typo in role name -->
+<div role="toooltip">Helpful text</div>
+
+<!-- ✅ Good -->
+<div role="tooltip">Helpful text</div>
+```
+
+### No Abstract Roles
+
+**Warning**: `a11y_no_abstract_role`
+
+Don't use abstract ARIA roles:
+
+```svelte
+<!-- ❌ Bad: 'command' is abstract -->
+<div role="command"></div>
+
+<!-- ✅ Good: Use concrete roles -->
+<button role="button">Action</button>
+```
+
+## Best Practices
+
+<Steps>
+  1. **Use semantic HTML** - Prefer `<button>`, `<nav>`, `<main>` over generic `<div>` elements
+  2. **Test with screen readers** - Use NVDA, JAWS, or VoiceOver to verify your application
+  3. **Support keyboard navigation** - Ensure all functionality is accessible via keyboard
+  4. **Provide text alternatives** - Include alt text, captions, and transcripts
+  5. **Use sufficient color contrast** - Ensure text is readable for users with visual impairments
+  6. **Respect user preferences** - Honor prefers-reduced-motion and other media queries
+</Steps>
+
+## Testing Accessibility
+
+### Browser DevTools
+
+Modern browsers include accessibility inspectors:
+
+- **Chrome/Edge**: Accessibility pane in DevTools
+- **Firefox**: Accessibility Inspector
+- **Safari**: Accessibility Inspector in Web Inspector
+
+### Automated Testing
+
+Use tools like [axe-core](https://github.com/dequelabs/axe-core) or [pa11y](https://pa11y.org/) to catch issues:
+
+```bash
+npm install -D @axe-core/playwright
+```
+
+<Tip>
+Svelte's compile-time warnings catch many issues that runtime tools might miss. Pay attention to compiler warnings!
+</Tip>
+
+## Additional Resources
+
+- [WebAIM](https://webaim.org/) - Web Accessibility in Mind
+- [WCAG Guidelines](https://www.w3.org/WAI/WCAG21/quickref/) - Web Content Accessibility Guidelines
+- [A11y Project](https://www.a11yproject.com/) - Community-driven accessibility resources
+- [MDN Accessibility](https://developer.mozilla.org/en-US/docs/Web/Accessibility) - Comprehensive accessibility documentation

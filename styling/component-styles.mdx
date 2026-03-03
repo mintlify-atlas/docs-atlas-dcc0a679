@@ -1,0 +1,129 @@
+---
+title: Component Styles
+description: Learn how Svelte scopes CSS to components using hash-based class names, ensuring styles only affect elements within the component.
+---
+
+Svelte components can include a `<style>` element containing CSS that belongs to the component. This CSS is **scoped** by default, meaning that styles will not apply to any elements on the page outside the component in question.
+
+## How Scoped Styles Work
+
+Svelte's compiler adds a unique class to affected elements based on a hash of the component styles (e.g. `svelte-123xyz`). This ensures complete style isolation between components.
+
+```svelte
+<style>
+	p {
+		/* this will only affect <p> elements in this component */
+		color: burlywood;
+	}
+</style>
+
+<p>This paragraph will be burlywood colored.</p>
+```
+
+The compiled output adds the scoping class automatically:
+
+```html
+<p class="svelte-123xyz">This paragraph will be burlywood colored.</p>
+```
+
+```css
+p.svelte-123xyz {
+	color: burlywood;
+}
+```
+
+<Note>
+Scoped styles are one of Svelte's most powerful features. The compiler handles all the work of ensuring your component styles don't leak to other parts of your application.
+</Note>
+
+## Specificity
+
+Each scoped selector receives a [specificity](https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity) increase of 0-1-0, as a result of the scoping class (e.g. `.svelte-123xyz`) being added to the selector.
+
+This means that a `p` selector defined in a component will take precedence over a `p` selector defined in a global stylesheet, even if the global stylesheet is loaded later.
+
+```svelte
+<!-- MyComponent.svelte -->
+<style>
+	p {
+		/* Specificity: 0-1-1 (element + scoping class) */
+		color: red;
+	}
+</style>
+```
+
+```css
+/* global.css */
+p {
+	/* Specificity: 0-0-1 (element only) */
+	color: blue;
+}
+```
+
+In this case, the component's red color wins, even if `global.css` is loaded after the component.
+
+<Note>
+In some cases, the scoping class must be added to a selector multiple times, but after the first occurrence it is added with `:where(.svelte-xyz123)` to avoid increasing specificity further.
+</Note>
+
+## Scoped Keyframes
+
+If a component defines `@keyframes`, the name is scoped to the component using the same hashing approach. Any `animation` rules in the component will be similarly adjusted:
+
+```svelte
+<style>
+	.bouncy {
+		animation: bounce 10s;
+	}
+
+	/* these keyframes are only accessible inside this component */
+	@keyframes bounce {
+		0%, 100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-20px);
+		}
+	}
+</style>
+
+<div class="bouncy">I bounce!</div>
+```
+
+The compiler automatically renames both the `@keyframes` definition and the `animation` reference to something like `bounce-svelte-123xyz`, preventing naming conflicts between components.
+
+## Global Styles
+
+To apply styles globally, use the `:global(...)` modifier:
+
+```svelte
+<style>
+	:global(body) {
+		/* applies to <body> */
+		margin: 0;
+	}
+
+	div :global(strong) {
+		/* applies to all <strong> elements, in any component,
+		   that are inside <div> elements belonging to this component */
+		color: goldenrod;
+	}
+
+	p:global(.big.red) {
+		/* applies to all <p> elements belonging to this component
+		   with class="big red", even if applied programmatically */
+	}
+</style>
+```
+
+For global keyframes, prepend your keyframe names with `-global-`:
+
+```svelte
+<style>
+	@keyframes -global-my-animation-name {
+		/* code goes here */
+	}
+</style>
+```
+
+The `-global-` part will be removed when compiled, and the keyframe will be referenced using just `my-animation-name` elsewhere in your code.

@@ -1,0 +1,423 @@
+---
+title: Custom Elements (Web Components)
+description: Learn how to compile Svelte components to standards-based Web Components with custom element support
+---
+
+Svelte components can be compiled to custom elements (Web Components), allowing you to use them in any JavaScript framework or vanilla HTML.
+
+## Basic Setup
+
+To create a custom element, use the `customElement` option in `<svelte:options>`:
+
+```svelte title="MyElement.svelte"
+<svelte:options customElement="my-element" />
+
+<script>
+  let { name = 'world' } = $props();
+</script>
+
+<h1>Hello {name}!</h1>
+<slot />
+```
+
+Enable custom element compilation in your build configuration:
+
+```js title="svelte.config.js"
+export default {
+  compilerOptions: {
+    customElement: true
+  }
+};
+```
+
+### Using Custom Elements
+
+Once defined, use your component as a regular HTML element:
+
+```html
+<my-element name="universe">
+  <p>Slotted content</p>
+</my-element>
+```
+
+```js
+// Set properties via JavaScript
+const el = document.querySelector('my-element');
+console.log(el.name); // "universe"
+el.name = 'everyone';
+```
+
+<Note>
+Props are exposed as both DOM properties and HTML attributes (where possible).
+</Note>
+
+## Defining Custom Elements
+
+### Automatic Registration
+
+With `customElement` set to a tag name, the element auto-registers:
+
+```svelte
+<svelte:options customElement="my-button" />
+```
+
+### Manual Registration
+
+Omit the tag name to register manually:
+
+```svelte title="MyElement.svelte"
+<svelte:options customElement />
+
+<script>
+  let { label } = $props();
+</script>
+
+<button>{label}</button>
+```
+
+```js
+import MyElement from './MyElement.svelte';
+
+// Register with your chosen tag name
+customElements.define('custom-button', MyElement.element);
+```
+
+<Tip>
+Manual registration is useful for library components where consumers choose the tag name.
+</Tip>
+
+## Advanced Configuration
+
+Configure custom element behavior with an object:
+
+```svelte
+<svelte:options
+  customElement={{
+    tag: 'my-element',
+    shadow: 'open',
+    props: {
+      count: { reflect: true, type: 'Number', attribute: 'data-count' }
+    },
+    extend: (customElementConstructor) => {
+      return class extends customElementConstructor {
+        static formAssociated = true;
+        
+        constructor() {
+          super();
+          this.attachedInternals = this.attachInternals();
+        }
+      };
+    }
+  }}
+/>
+```
+
+### Configuration Options
+
+#### `tag`
+
+Optional tag name for auto-registration:
+
+```svelte
+<svelte:options customElement={{ tag: 'my-widget' }} />
+```
+
+#### `shadow`
+
+Configure the shadow DOM:
+
+- `"open"` (default): Shadow root with `mode: "open"`
+- `"none"`: No shadow root (styles won't be encapsulated)
+- `ShadowRootInit` object: Custom shadow root configuration
+
+```svelte
+<svelte:options
+  customElement={{
+    tag: 'my-element',
+    shadow: {
+      mode: 'open',
+      delegatesFocus: true,
+      clonable: true
+    }
+  }}
+/>
+```
+
+<Warning>
+Using `shadow: "none"` disables style encapsulation and prevents using `<slot>` elements.
+</Warning>
+
+#### `props`
+
+Configure how props map to attributes:
+
+```svelte
+<svelte:options
+  customElement={{
+    tag: 'user-card',
+    props: {
+      userId: {
+        attribute: 'user-id',    // Map to kebab-case attribute
+        type: 'Number',          // Convert attribute string to number
+        reflect: true            // Reflect prop changes to attribute
+      },
+      active: {
+        type: 'Boolean',
+        reflect: true
+      },
+      metadata: {
+        type: 'Object'           // Parse JSON from attribute
+      }
+    }
+  }}
+/>
+
+<script>
+  let { userId, active, metadata } = $props();
+</script>
+```
+
+**Type Options**:
+- `'String'` (default): No conversion
+- `'Number'`: Parse as number
+- `'Boolean'`: Convert to boolean
+- `'Array'`: Parse as JSON array
+- `'Object'`: Parse as JSON object
+
+<Note>
+You must explicitly list all props for them to be exposed as DOM properties. Using `let props = $props()` without listing them individually won't work.
+</Note>
+
+#### `extend`
+
+Extend the custom element class for advanced features:
+
+```svelte
+<svelte:options
+  customElement={{
+    tag: 'form-input',
+    extend: (customElementConstructor) => {
+      return class extends customElementConstructor {
+        static formAssociated = true;
+        
+        constructor() {
+          super();
+          this.internals = this.attachInternals();
+        }
+        
+        // Expose methods before component mounts
+        getValue() {
+          return this.internals.value;
+        }
+      };
+    }
+  }}
+/>
+
+<script>
+  let { internals } = $props();
+  
+  function updateValue(value) {
+    internals.setFormValue(value);
+  }
+</script>
+```
+
+<Tip>
+Use `extend` for [ElementInternals](https://developer.mozilla.org/en-US/docs/Web/API/ElementInternals) integration with forms.
+</Tip>
+
+## Accessing the Host Element
+
+Use the `$host` rune to access the custom element:
+
+```svelte
+<svelte:options customElement="my-element" />
+
+<script>
+  let host = $host();
+  
+  $effect(() => {
+    console.log(host); // The <my-element> DOM node
+    host.style.border = '2px solid blue';
+  });
+</script>
+```
+
+## Component Lifecycle
+
+### Creation Timing
+
+Custom elements use a wrapper approach:
+
+<Steps>
+  1. Custom element is created (constructor runs)
+  2. Element is inserted into DOM (`connectedCallback`)
+  3. **Next tick**: Svelte component is created
+  4. Props assigned before insertion are applied to the component
+</Steps>
+
+<Warning>
+Properties assigned before DOM insertion are saved and applied after component creation. However, **function calls** are only available after mounting.
+</Warning>
+
+### Updates and Batching
+
+Updates are batched and applied on the next tick:
+
+```js
+const el = document.querySelector('my-element');
+
+el.prop1 = 'new value';
+el.prop2 = 'another value';
+// Component updates on next tick
+```
+
+### Destruction
+
+The Svelte component is destroyed on the next tick after `disconnectedCallback`:
+
+```js
+// Removing from DOM triggers cleanup
+element.remove();
+// Component is destroyed on next tick
+```
+
+## Slots and Content Projection
+
+Custom elements use native `<slot>` elements:
+
+```svelte title="Card.svelte"
+<svelte:options customElement="card-element" />
+
+<div class="card">
+  <header>
+    <slot name="header">Default header</slot>
+  </header>
+  <slot>Default content</slot>
+</div>
+```
+
+```html
+<card-element>
+  <h2 slot="header">My Card</h2>
+  <p>Card content goes here</p>
+</card-element>
+```
+
+<Warning>
+Slotted content renders **eagerly** in the DOM (unlike Svelte's lazy rendering). Content is always created even if inside `{#if}` blocks.
+</Warning>
+
+## Caveats and Limitations
+
+### Style Encapsulation
+
+Styles are encapsulated in the shadow DOM by default:
+
+```svelte
+<svelte:options customElement="styled-element" />
+
+<div class="container">Content</div>
+
+<style>
+  /* Only affects elements in this shadow root */
+  .container {
+    color: blue;
+  }
+</style>
+```
+
+- Global styles (from `global.css`) **don't** apply inside custom elements
+- `:global()` styles **don't** escape the shadow DOM
+- Styles are inlined as JavaScript, not extracted to separate CSS files
+
+### Server-Side Rendering
+
+<Warning>
+Custom elements are **not suitable for SSR**. The shadow DOM is invisible until JavaScript loads.
+</Warning>
+
+### Slot Differences
+
+- Svelte's `{#each}` blocks don't render slotted content multiple times
+- The deprecated `let:` directive doesn't work with custom elements
+- No parent-to-slot data passing mechanism
+
+### Context API
+
+```svelte
+<!-- ✅ Works: Context within a custom element -->
+<CustomElement>
+  <ComponentA />  <!-- Can use context -->
+  <ComponentB />  <!-- Can use context -->
+</CustomElement>
+
+<!-- ❌ Doesn't work: Context across custom elements -->
+<ParentElement>  <!-- setContext() -->
+  <ChildElement /> <!-- getContext() won't find it -->
+</ParentElement>
+```
+
+<Note>
+Context works **within** a custom element but not **across** custom element boundaries.
+</Note>
+
+### Naming Constraints
+
+Avoid properties/attributes starting with `on`:
+
+```svelte
+<!-- ❌ Bad: Interpreted as event listener -->
+<my-element oneworld={true}></my-element>
+<!-- Becomes: element.addEventListener('eworld', true) -->
+
+<!-- ✅ Good: Use different naming -->
+<my-element world={true}></my-element>
+```
+
+## Browser Support
+
+Custom elements work in all modern browsers. For older browsers:
+
+```bash
+npm install @webcomponents/webcomponentsjs
+```
+
+```html
+<script src="/node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+```
+
+## Testing Custom Elements
+
+Test as standard DOM elements:
+
+```js
+import { expect, test } from 'vitest';
+import './MyElement.svelte'; // Auto-registers
+
+test('custom element', () => {
+  const el = document.createElement('my-element');
+  document.body.appendChild(el);
+  
+  el.name = 'Test';
+  expect(el.querySelector('h1').textContent).toBe('Hello Test!');
+});
+```
+
+## When to Use Custom Elements
+
+**Good use cases**:
+- Component libraries for non-Svelte apps
+- Embedding Svelte in existing applications
+- Framework-agnostic design systems
+- Progressive enhancement of static HTML
+
+**Not recommended for**:
+- Server-side rendered applications
+- Sharing components between Svelte apps (use regular components)
+- Heavy data passing between components (context won't work)
+
+<Tip>
+For Svelte-to-Svelte communication, use regular components. Custom elements are best for framework interoperability.
+</Tip>

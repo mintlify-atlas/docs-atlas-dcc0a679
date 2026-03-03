@@ -1,122 +1,219 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Svelte",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FF3E00"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/sveltejs/svelte"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/sveltejs/svelte"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Introduction",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction/overview",
+              "introduction/getting-started",
+              "introduction/svelte-files"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Runes",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "runes/overview",
+              "runes/state",
+              "runes/derived",
+              "runes/effect",
+              "runes/props",
+              "runes/bindable",
+              "runes/inspect",
+              "runes/host"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Template Syntax",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "template-syntax/basic-markup",
+              "template-syntax/if-blocks",
+              "template-syntax/each-blocks",
+              "template-syntax/await-blocks",
+              "template-syntax/key-blocks",
+              "template-syntax/snippets",
+              "template-syntax/event-handlers",
+              "template-syntax/bindings"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Component Basics",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "components/component-structure",
+              "components/props-and-state",
+              "components/lifecycle",
+              "components/context",
+              "components/slots"
+            ]
+          },
+          {
+            "group": "Styling",
+            "pages": [
+              "styling/component-styles",
+              "styling/class-directives",
+              "styling/css-variables"
+            ]
+          },
+          {
+            "group": "Special Elements",
+            "pages": [
+              "special-elements/svelte-component",
+              "special-elements/svelte-element",
+              "special-elements/svelte-window",
+              "special-elements/svelte-document",
+              "special-elements/svelte-body",
+              "special-elements/svelte-head",
+              "special-elements/svelte-options",
+              "special-elements/svelte-fragment"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core Runtime",
             "pages": [
-              "api-reference/introduction"
+              "api/mount",
+              "api/unmount",
+              "api/hydrate",
+              "api/untrack",
+              "api/flush-sync",
+              "api/tick"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Lifecycle",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/on-mount",
+              "api/on-destroy",
+              "api/before-update",
+              "api/after-update"
+            ]
+          },
+          {
+            "group": "Context",
+            "pages": [
+              "api/set-context",
+              "api/get-context",
+              "api/has-context",
+              "api/get-all-contexts"
+            ]
+          },
+          {
+            "group": "Stores",
+            "pages": [
+              "api/stores/writable",
+              "api/stores/readable",
+              "api/stores/derived",
+              "api/stores/get"
+            ]
+          },
+          {
+            "group": "Motion",
+            "pages": [
+              "api/motion/tweened",
+              "api/motion/spring"
+            ]
+          },
+          {
+            "group": "Transitions",
+            "pages": [
+              "api/transitions/fade",
+              "api/transitions/blur",
+              "api/transitions/fly",
+              "api/transitions/slide",
+              "api/transitions/scale",
+              "api/transitions/draw",
+              "api/transitions/crossfade"
+            ]
+          },
+          {
+            "group": "Animations",
+            "pages": [
+              "api/animations/flip",
+              "api/animations/animate"
+            ]
+          },
+          {
+            "group": "Easing",
+            "pages": [
+              "api/easing/overview"
+            ]
+          },
+          {
+            "group": "Actions",
+            "pages": [
+              "api/actions"
+            ]
+          },
+          {
+            "group": "Events",
+            "pages": [
+              "api/events/create-event-dispatcher"
+            ]
+          },
+          {
+            "group": "Compiler",
+            "pages": [
+              "api/compiler/compile",
+              "api/compiler/preprocess",
+              "api/compiler/migrate",
+              "api/compiler/options"
+            ]
+          },
+          {
+            "group": "Server",
+            "pages": [
+              "api/server/render"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "groups": [
+          {
+            "group": "Advanced Topics",
+            "pages": [
+              "advanced/typescript",
+              "advanced/accessibility",
+              "advanced/server-side-rendering",
+              "advanced/custom-elements",
+              "advanced/performance",
+              "advanced/debugging"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/v5-migration-guide",
+              "migration/from-react",
+              "migration/from-vue"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

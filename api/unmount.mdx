@@ -1,0 +1,92 @@
+---
+title: unmount()
+description: Unmounts a component that was previously mounted
+---
+
+Unmounts a component that was previously mounted using `mount()` or `hydrate()`.
+
+Since 5.13.0, if `options.outro` is `true`, transitions will play before the component is removed from the DOM. Returns a `Promise` that resolves after transitions have completed if `options.outro` is true, or immediately otherwise.
+
+```ts
+function unmount(
+  component: Record<string, any>,
+  options?: { outro?: boolean }
+): Promise<void>
+```
+
+## Parameters
+
+<ParamField path="component" type="Record<string, any>" required>
+  The component instance returned by `mount()` or `hydrate()`
+</ParamField>
+
+<ParamField path="options" type="{ outro?: boolean }">
+  Optional configuration for unmounting
+
+  <ParamField path="outro" type="boolean" default="false">
+    Whether to play outro transitions before removing the component from the DOM (available since 5.13.0)
+  </ParamField>
+</ParamField>
+
+## Returns
+
+<ResponseField name="promise" type="Promise<void>">
+  A promise that resolves after transitions have completed if `options.outro` is `true`, or immediately otherwise
+</ResponseField>
+
+## Examples
+
+### Basic usage
+
+```js
+import { mount, unmount } from 'svelte';
+import App from './App.svelte';
+
+const app = mount(App, { target: document.body });
+
+// Later...
+await unmount(app);
+```
+
+### With outro transitions
+
+```js
+import { mount, unmount } from 'svelte';
+import Modal from './Modal.svelte';
+
+const modal = mount(Modal, { target: document.body });
+
+// Play outro transitions before unmounting
+await unmount(modal, { outro: true });
+console.log('Modal has been removed with transitions');
+```
+
+### Conditional unmounting
+
+```js
+import { mount, unmount } from 'svelte';
+import Tooltip from './Tooltip.svelte';
+
+let tooltip = null;
+
+function showTooltip() {
+  tooltip = mount(Tooltip, {
+    target: document.body,
+    props: { text: 'Hello!' }
+  });
+}
+
+async function hideTooltip() {
+  if (tooltip) {
+    await unmount(tooltip, { outro: true });
+    tooltip = null;
+  }
+}
+```
+
+## Notes
+
+- Calling `unmount()` on a component that was never mounted or has already been unmounted will resolve immediately without error (in production)
+- In development mode, attempting to unmount a component twice will trigger a warning
+- If `outro` is `true`, the promise will wait for all outro transitions to complete before resolving
+- The component and all its child components will be destroyed, and cleanup functions will be called

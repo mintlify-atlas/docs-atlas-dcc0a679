@@ -1,0 +1,238 @@
+---
+title: Getting started
+description: Install Svelte and create your first component using SvelteKit or standalone Vite setup
+---
+
+## Quick start with SvelteKit
+
+The recommended way to start building with Svelte is using [SvelteKit](https://svelte.dev/docs/kit), the official application framework powered by [Vite](https://vite.dev/). SvelteKit provides routing, server-side rendering, and other features that make building full-featured applications straightforward.
+
+<Steps>
+  <Step title="Create a new project">
+    Run the `sv create` command to scaffold a new project:
+
+    <CodeGroup>
+    ```bash npm
+    npx sv create myapp
+    cd myapp
+    npm install
+    ```
+
+    ```bash pnpm
+    pnpm create sv myapp
+    cd myapp
+    pnpm install
+    ```
+
+    ```bash yarn
+    yarn create sv myapp
+    cd myapp
+    yarn install
+    ```
+    </CodeGroup>
+
+    The interactive CLI will guide you through selecting project options including TypeScript support, linting, and testing setup.
+  </Step>
+
+  <Step title="Start the development server">
+    Launch the development server with hot module replacement:
+
+    <CodeGroup>
+    ```bash npm
+    npm run dev
+    ```
+
+    ```bash pnpm
+    pnpm dev
+    ```
+
+    ```bash yarn
+    yarn dev
+    ```
+    </CodeGroup>
+
+    Your app will be available at `http://localhost:5173`
+  </Step>
+
+  <Step title="Create your first component">
+    Create a new file `src/lib/Counter.svelte`:
+
+    ```svelte src/lib/Counter.svelte
+    <script>
+    	let count = $state(0);
+    </script>
+
+    <button onclick={() => count++}>
+    	Clicked {count} {count === 1 ? 'time' : 'times'}
+    </button>
+
+    <style>
+    	button {
+    		background: #ff3e00;
+    		color: white;
+    		border: none;
+    		padding: 12px 24px;
+    		border-radius: 8px;
+    		font-size: 16px;
+    		cursor: pointer;
+    		transition: background 0.2s;
+    	}
+
+    	button:hover {
+    		background: #ff6540;
+    	}
+    </style>
+    ```
+  </Step>
+
+  <Step title="Use your component">
+    Import and use your component in `src/routes/+page.svelte`:
+
+    ```svelte src/routes/+page.svelte
+    <script>
+    	import Counter from '$lib/Counter.svelte';
+    </script>
+
+    <h1>Welcome to Svelte!</h1>
+    <Counter />
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Don't worry if you don't know all of SvelteKit's features yet! You can focus on learning Svelte itself first and explore SvelteKit's routing, SSR, and other capabilities later.
+</Note>
+
+## Understanding the example
+
+Let's break down the Counter component:
+
+### Reactive state with `$state`
+
+```javascript
+let count = $state(0);
+```
+
+The `$state` rune creates reactive state. When `count` changes, Svelte automatically updates any part of the UI that depends on it. No need for `setState` or similar functions — just use regular assignment:
+
+```javascript
+count++  // This automatically triggers UI updates
+```
+
+### Event handling
+
+```svelte
+<button onclick={() => count++}>
+```
+
+Event handlers use standard DOM event names (`onclick`, `onkeydown`, etc.) and accept inline functions or references to functions defined in your `<script>` block.
+
+### Template expressions
+
+```svelte
+{count === 1 ? 'time' : 'times'}
+```
+
+Curly braces `{}` let you embed JavaScript expressions directly in your markup. Svelte efficiently tracks which expressions depend on which state and updates only what's necessary.
+
+### Scoped styles
+
+The `<style>` block is automatically scoped to this component. The `button` selector only affects buttons in this component, not buttons elsewhere in your application.
+
+## Alternative setup with Vite
+
+If you prefer a minimal setup without SvelteKit's features, you can use Svelte directly with Vite:
+
+<Steps>
+  <Step title="Create a Vite project">
+    <CodeGroup>
+    ```bash npm
+    npm create vite@latest myapp -- --template svelte
+    cd myapp
+    npm install
+    ```
+
+    ```bash pnpm
+    pnpm create vite myapp --template svelte
+    cd myapp
+    pnpm install
+    ```
+
+    ```bash yarn
+    yarn create vite myapp --template svelte
+    cd myapp
+    yarn install
+    ```
+    </CodeGroup>
+
+    Add `-ts` to the template name for TypeScript support: `--template svelte-ts`
+  </Step>
+
+  <Step title="Start development">
+    <CodeGroup>
+    ```bash npm
+    npm run dev
+    ```
+
+    ```bash pnpm
+    pnpm dev
+    ```
+
+    ```bash yarn
+    yarn dev
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Warning>
+  The standalone Vite setup is great for building single-page apps (SPAs), but you'll need to choose a routing library separately. For most projects, SvelteKit is the recommended choice.
+</Warning>
+
+## Editor setup
+
+For the best development experience, install the official Svelte extension for your editor:
+
+<CardGroup cols={2}>
+  <Card title="VS Code" icon="code">
+    Install the [Svelte for VS Code](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) extension for syntax highlighting, IntelliSense, and diagnostics.
+  </Card>
+  <Card title="Other editors" icon="terminal">
+    Check [Svelte Society](https://sveltesociety.dev/collection/editor-support-c85c080efc292a34) for plugins supporting JetBrains IDEs, Vim, Emacs, and more.
+  </Card>
+</CardGroup>
+
+### Command-line type checking
+
+You can check your code for errors from the command line:
+
+```bash
+npx sv check
+```
+
+This is useful for CI/CD pipelines and pre-commit hooks.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Svelte files" icon="file-code" href="/introduction/svelte-files">
+    Learn about the structure of .svelte component files
+  </Card>
+  <Card title="Runes" icon="wand-magic-sparkles" href="/runes/overview">
+    Understand Svelte's reactivity system with runes
+  </Card>
+  <Card title="Template syntax" icon="code" href="/template-syntax/basic-markup">
+    Explore Svelte's powerful template features
+  </Card>
+  <Card title="SvelteKit docs" icon="book" href="https://svelte.dev/docs/kit">
+    Dive into full-stack development with SvelteKit
+  </Card>
+</CardGroup>
+
+## Getting help
+
+Join the friendly Svelte community:
+
+- **Discord**: Join the [Svelte Discord](https://svelte.dev/chat) for real-time help and discussion
+- **Stack Overflow**: Browse and ask questions tagged with [svelte](https://stackoverflow.com/questions/tagged/svelte)
+- **GitHub**: Report issues or contribute on [GitHub](https://github.com/sveltejs/svelte)

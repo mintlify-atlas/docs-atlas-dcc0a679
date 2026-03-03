@@ -1,0 +1,120 @@
+---
+title: Overview
+description: Svelte is a compiler-based framework that transforms declarative components into highly efficient JavaScript that surgically updates the DOM
+---
+
+<img
+  className="block"
+  src="/images/svelte-banner.svg"
+  alt="Svelte - Cybernetically enhanced web apps"
+/>
+
+## What is Svelte?
+
+Svelte is a framework for building user interfaces on the web. Unlike traditional frameworks that do most of their work in the browser, Svelte uses a **compiler** to turn your declarative components written in HTML, CSS, and JavaScript into lean, tightly optimized JavaScript that surgically updates the DOM.
+
+<CardGroup cols={2}>
+  <Card title="Compiler-based" icon="bolt">
+    Svelte compiles your components at build time into efficient imperative code that directly manipulates the DOM, resulting in smaller bundle sizes and faster runtime performance.
+  </Card>
+  <Card title="Write less code" icon="code">
+    Build reactive UIs with straightforward JavaScript. No virtual DOM overhead, no complex state management — just clean, readable code.
+  </Card>
+  <Card title="Truly reactive" icon="arrows-rotate">
+    Reactivity is built into the language with runes like `$state` and `$derived`. The compiler handles the heavy lifting of tracking dependencies.
+  </Card>
+  <Card title="Scoped styles" icon="paintbrush">
+    CSS in Svelte components is scoped by default, preventing style conflicts without requiring CSS-in-JS libraries or naming conventions.
+  </Card>
+</CardGroup>
+
+## See it in action
+
+Here's a complete Svelte component that demonstrates the framework's elegant simplicity:
+
+```svelte App.svelte
+<script>
+	function greet() {
+		alert('Welcome to Svelte!');
+	}
+</script>
+
+<button onclick={greet}>click me</button>
+
+<style>
+	button {
+		font-size: 2em;
+	}
+</style>
+```
+
+This simple example showcases all three parts of a Svelte component:
+- **Script**: Contains your component logic
+- **Markup**: Standard HTML enhanced with Svelte's template syntax
+- **Style**: Scoped CSS that only affects this component
+
+## What you can build
+
+Svelte is versatile enough to handle any web project:
+
+- **Standalone components** for embedding in existing applications
+- **Single-page applications (SPAs)** with client-side routing
+- **Full-stack applications** using [SvelteKit](https://svelte.dev/docs/kit), the official application framework
+- **Static sites** with pre-rendering and optimal performance
+- **Hybrid applications** mixing static, server-rendered, and client-rendered content
+
+## Key features
+
+### No virtual DOM
+
+Svelte compiles your code to efficient DOM updates at build time, eliminating the runtime overhead of virtual DOM diffing. This results in faster initial loads and smoother interactions.
+
+### Built-in reactivity
+
+Reactivity in Svelte is powered by **runes** — special function-like syntax that the compiler understands:
+
+```svelte Counter.svelte
+<script>
+	let count = $state(0);
+</script>
+
+<button onclick={() => count++}>
+	clicks: {count}
+</button>
+```
+
+The `$state` rune creates reactive state. When `count` changes, Svelte automatically updates the DOM — no hooks, no `setState`, just simple assignment.
+
+### Component-scoped CSS
+
+Styles are scoped to components by default, preventing global CSS pollution:
+
+```svelte
+<style>
+	p {
+		/* This only affects <p> elements in this component */
+		color: burlywood;
+	}
+</style>
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Getting started" icon="rocket" href="/introduction/getting-started">
+    Install Svelte and create your first component
+  </Card>
+  <Card title="Svelte files" icon="file-code" href="/introduction/svelte-files">
+    Learn the structure of .svelte component files
+  </Card>
+  <Card title="Interactive tutorial" icon="graduation-cap" href="https://svelte.dev/tutorial">
+    Try Svelte in your browser with hands-on lessons
+  </Card>
+  <Card title="Playground" icon="code" href="https://svelte.dev/playground">
+    Experiment with Svelte online without installation
+  </Card>
+</CardGroup>
+
+<Note>
+  These documentation pages serve as a reference. If you're new to Svelte, we recommend starting with the [interactive tutorial](https://svelte.dev/tutorial) and returning here when you have questions.
+</Note>

@@ -1,0 +1,272 @@
+---
+title: 'tweened'
+description: 'A store that interpolates values smoothly over time using easing functions'
+---
+
+## Overview
+
+The `tweened` store provides smooth transitions between state values over time. Unlike regular stores that update instantly, tweened stores animate from one value to another using configurable duration and easing functions.
+
+<Note>
+  **Deprecated**: The `tweened()` function is deprecated in Svelte 5. Use the [`Tween`](https://svelte.dev/docs/svelte/svelte-motion#Tween) class instead.
+</Note>
+
+## Import
+
+```javascript
+import { tweened } from 'svelte/motion';
+// or use the new Tween class
+import { Tween } from 'svelte/motion';
+```
+
+## Signature (Legacy)
+
+```typescript
+function tweened<T>(
+  value?: T,
+  options?: TweenedOptions<T>
+): Tweened<T>
+```
+
+## Parameters
+
+<ParamField path="value" type="T" default="undefined">
+  The initial value of the store
+</ParamField>
+
+<ParamField path="options" type="TweenedOptions<T>" default="{}">
+  Configuration options for the tween behavior
+
+  <Expandable title="options properties">
+    <ParamField path="delay" type="number" default="0">
+      Milliseconds before the tween starts
+    </ParamField>
+
+    <ParamField path="duration" type="number | function" default="400">
+      Duration of the tween in milliseconds. Can be a function `(from, to) => milliseconds` that calculates duration based on start and end values
+    </ParamField>
+
+    <ParamField path="easing" type="function" default="linear">
+      Easing function that controls the animation curve. Takes a value between 0 and 1 and returns a transformed value. See [svelte/easing](https://svelte.dev/docs/svelte-easing) for built-in functions
+    </ParamField>
+
+    <ParamField path="interpolate" type="function" default="built-in interpolator">
+      Custom interpolation function `(from, to) => t => value`. By default, Svelte interpolates numbers, dates, arrays, and objects
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+Returns a `Tweened<T>` store object with:
+
+- `subscribe(fn)` - Subscribe to value changes
+- `set(value, options?)` - Set a new value and return a Promise that resolves when the tween completes
+- `update(fn, options?)` - Update the value using a callback function
+
+## Examples
+
+### Basic Number Tween
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
+
+  const progress = tweened(0, {
+    duration: 400,
+    easing: cubicOut
+  });
+</script>
+
+<progress value={$progress}></progress>
+
+<button onclick={() => progress.set(0)}>0%</button>
+<button onclick={() => progress.set(0.5)}>50%</button>
+<button onclick={() => progress.set(1)}>100%</button>
+```
+
+### Using Different Easing Functions
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { elasticOut, bounceOut, backOut } from 'svelte/easing';
+
+  const elastic = tweened(0, { duration: 800, easing: elasticOut });
+  const bounce = tweened(0, { duration: 600, easing: bounceOut });
+  const back = tweened(0, { duration: 500, easing: backOut });
+</script>
+
+<button onclick={() => elastic.set(100)}>Elastic</button>
+<button onclick={() => bounce.set(100)}>Bounce</button>
+<button onclick={() => back.set(100)}>Back</button>
+
+<div style="transform: translateX({$elastic}px)">Elastic</div>
+<div style="transform: translateX({$bounce}px)">Bounce</div>
+<div style="transform: translateX({$back}px)">Back</div>
+```
+
+### Dynamic Duration
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { linear } from 'svelte/easing';
+
+  const value = tweened(0, {
+    duration: (from, to) => Math.abs(to - from) * 100,
+    easing: linear
+  });
+</script>
+
+<!-- Duration scales with distance -->
+<button onclick={() => value.set(10)}>Short tween</button>
+<button onclick={() => value.set(100)}>Long tween</button>
+```
+
+### Tweening Objects
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
+
+  const coords = tweened({ x: 0, y: 0 }, {
+    duration: 500,
+    easing: cubicOut
+  });
+
+  function moveToRandom() {
+    coords.set({
+      x: Math.random() * 400,
+      y: Math.random() * 400
+    });
+  }
+</script>
+
+<svg>
+  <circle cx={$coords.x} cy={$coords.y} r="10" fill="red" />
+</svg>
+
+<button onclick={moveToRandom}>Move</button>
+```
+
+### Awaiting Completion
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
+
+  const progress = tweened(0, {
+    duration: 2000,
+    easing: cubicOut
+  });
+
+  async function runSequence() {
+    await progress.set(0.33);
+    console.log('First third complete');
+    
+    await progress.set(0.67);
+    console.log('Two thirds complete');
+    
+    await progress.set(1);
+    console.log('Finished!');
+  }
+</script>
+```
+
+### Per-Call Options
+
+```svelte
+<script>
+  import { tweened } from 'svelte/motion';
+  import { cubicOut, elasticOut } from 'svelte/easing';
+
+  const x = tweened(0);
+</script>
+
+<button onclick={() => x.set(100, { duration: 200, easing: cubicOut })}>
+  Fast
+</button>
+
+<button onclick={() => x.set(100, { duration: 2000, easing: elasticOut })}>
+  Slow & Bouncy
+</button>
+
+<button onclick={() => x.set(100, { duration: 0 })}>
+  Instant (no animation)
+</button>
+```
+
+## New Tween Class (Svelte 5+)
+
+The modern replacement for `tweened()` is the `Tween` class:
+
+```svelte
+<script>
+  import { Tween } from 'svelte/motion';
+
+  const tween = new Tween(0, {
+    duration: 400,
+    easing: cubicOut
+  });
+</script>
+
+<input type="range" bind:value={tween.target} />
+<input type="range" bind:value={tween.current} disabled />
+```
+
+### Reactive Tween with `Tween.of()`
+
+```svelte
+<script>
+  import { Tween } from 'svelte/motion';
+
+  let { number } = $props();
+
+  // Automatically updates when number changes
+  const tween = Tween.of(() => number);
+</script>
+
+<div>Target: {number}</div>
+<div>Current: {tween.current}</div>
+```
+
+## Supported Value Types
+
+The tweened store can interpolate:
+
+- **Numbers**: `tweened(0)` → `tweened(100)`
+- **Dates**: `tweened(new Date(2024, 0, 1))` → `tweened(new Date(2024, 11, 31))`
+- **Arrays**: `tweened([0, 0])` → `tweened([100, 200])`
+- **Objects**: `tweened({ x: 0, y: 0 })` → `tweened({ x: 100, y: 100 })`
+
+<Warning>
+  Values must be of the same type. Attempting to tween between different types (e.g., number to array) will throw an error.
+</Warning>
+
+## Common Easing Functions
+
+Import from `svelte/easing`:
+
+```javascript
+import {
+  linear,        // No easing
+  cubicIn,       // Slow start
+  cubicOut,      // Slow end
+  cubicInOut,    // Slow start and end
+  elasticOut,    // Elastic bounce at end
+  bounceOut,     // Bouncing effect
+  backOut,       // Slight overshoot
+  expoOut,       // Exponential deceleration
+  quintOut       // Strong deceleration
+} from 'svelte/easing';
+```
+
+## See Also
+
+- [spring](/api/motion/spring) - For physics-based animations
+- [Svelte Easing](https://svelte.dev/docs/svelte-easing) - Available easing functions
+- [Tween Class](https://svelte.dev/docs/svelte/svelte-motion#Tween) - Modern replacement

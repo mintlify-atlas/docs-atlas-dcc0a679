@@ -1,0 +1,133 @@
+---
+title: hasContext()
+description: Check whether a given key has been set in the context of a parent component.
+---
+
+Checks whether a given `key` has been set in the context of a parent component. Must be called during component initialisation.
+
+## Signature
+
+```ts
+function hasContext(key: any): boolean
+```
+
+## Parameters
+
+<ParamField path="key" type="any" required>
+  The key to check for in parent component contexts.
+</ParamField>
+
+## Returns
+
+<ResponseField name="hasContext" type="boolean">
+  Returns `true` if a parent component has set a context with this key, `false` otherwise.
+</ResponseField>
+
+## Example
+
+### Conditional Context Usage
+
+```svelte
+<!-- Child.svelte -->
+<script>
+  import { hasContext, getContext } from 'svelte';
+
+  let theme;
+  
+  if (hasContext('theme')) {
+    theme = getContext('theme');
+  } else {
+    // Fallback to default theme
+    theme = {
+      color: 'gray',
+      mode: 'light'
+    };
+  }
+</script>
+
+<div style="color: {theme.color}">
+  Current theme: {theme.mode}
+</div>
+```
+
+### Parent Component With Context
+
+```svelte
+<!-- ParentWithContext.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import Child from './Child.svelte';
+
+  setContext('theme', {
+    color: 'blue',
+    mode: 'dark'
+  });
+</script>
+
+<Child />
+<!-- Will use blue/dark theme -->
+```
+
+### Parent Component Without Context
+
+```svelte
+<!-- ParentWithoutContext.svelte -->
+<script>
+  import Child from './Child.svelte';
+</script>
+
+<Child />
+<!-- Will use gray/light fallback theme -->
+```
+
+## Optional Context Pattern
+
+```svelte
+<script>
+  import { hasContext, getContext } from 'svelte';
+
+  // Provide optional feature enhancement if context is available
+  const analytics = hasContext('analytics') 
+    ? getContext('analytics') 
+    : null;
+
+  function trackEvent(name) {
+    // Only track if analytics context is available
+    if (analytics) {
+      analytics.track(name);
+    }
+  }
+
+  function handleClick() {
+    trackEvent('button-clicked');
+    // ... rest of click handler
+  }
+</script>
+
+<button onclick={handleClick}>Click me</button>
+```
+
+## Library Context Pattern
+
+```svelte
+<!-- CustomComponent.svelte -->
+<script>
+  import { hasContext, getContext } from 'svelte';
+
+  // Check if component is used within a library's context provider
+  if (!hasContext('my-library-config')) {
+    throw new Error(
+      'CustomComponent must be used within a LibraryProvider'
+    );
+  }
+
+  const config = getContext('my-library-config');
+</script>
+```
+
+## Notes
+
+- Must be called during component initialisation (not in callbacks or effects)
+- Use this to provide fallback values when context may not be available
+- Useful for creating reusable components that work both with and without context
+- Helps avoid errors when accessing context that might not exist

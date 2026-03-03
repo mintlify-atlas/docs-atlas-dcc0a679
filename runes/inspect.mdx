@@ -1,0 +1,144 @@
+---
+title: $inspect
+description: Debug reactive values in Svelte with the $inspect rune
+---
+
+The `$inspect` rune is roughly equivalent to `console.log`, with the exception that it will re-run whenever its argument changes. `$inspect` tracks reactive state deeply, meaning that updating something inside an object or array using fine-grained reactivity will cause it to re-fire.
+
+<Note>
+`$inspect` only works during development. In a production build it becomes a noop.
+</Note>
+
+## Signature
+
+```ts
+function $inspect<T extends any[]>(
+	...values: T
+): { with: (fn: (type: 'init' | 'update', ...values: T) => void) => void };
+```
+
+<ParamField path="values" type="T extends any[]">
+  One or more values to inspect. Can be any reactive state.
+</ParamField>
+
+## Basic usage
+
+```svelte
+<script>
+	let count = $state(0);
+	let message = $state('hello');
+
+	$inspect(count, message); // will console.log when `count` or `message` change
+</script>
+
+<button onclick={() => count++}>Increment</button>
+<input bind:value={message} />
+```
+
+On updates, a stack trace will be printed, making it easy to find the origin of a state change.
+
+## $inspect(...).with
+
+`$inspect` returns a property `with`, which you can invoke with a callback, which will then be invoked instead of `console.log`. The first argument to the callback is either `"init"` or `"update"`; subsequent arguments are the values passed to `$inspect`:
+
+```svelte
+<script>
+	let count = $state(0);
+
+	$inspect(count).with((type, count) => {
+		if (type === 'update') {
+			debugger; // or `console.trace`, or whatever you want
+		}
+	});
+</script>
+
+<button onclick={() => count++}>Increment</button>
+```
+
+<ParamField path="fn" type="(type: 'init' | 'update', ...values: T) => void">
+  A callback function to invoke instead of `console.log`. The first argument indicates whether this is the initial run or an update.
+</ParamField>
+
+## $inspect.trace(...)
+
+```ts
+function trace(name?: string): void;
+```
+
+This rune, added in 5.14, causes the surrounding function to be _traced_ in development. Any time the function re-runs as part of an effect or a derived, information will be printed to the console about which pieces of reactive state caused the effect to fire.
+
+```svelte
+<script>
+	import { doSomeWork } from './elsewhere';
+
+	$effect(() => {
+		// $inspect.trace must be the first statement of a function body
+		$inspect.trace();
+		doSomeWork();
+	});
+</script>
+```
+
+<ParamField path="name" type="string" optional>
+  An optional label for the trace output.
+</ParamField>
+
+<Warning>
+`$inspect.trace` must be the first statement of a function body.
+</Warning>
+
+## Use cases
+
+`$inspect` is particularly useful for:
+
+- Debugging reactive state changes
+- Understanding when and why effects re-run
+- Tracking down unexpected reactivity
+- Learning how Svelte's reactivity system works
+
+<Tabs>
+  <Tab title="Basic logging">
+    ```svelte
+    <script>
+    	let user = $state({ name: 'Alice', age: 30 });
+    	$inspect(user);
+    </script>
+
+    <input bind:value={user.name} />
+    <input type="number" bind:value={user.age} />
+    ```
+  </Tab>
+  <Tab title="Custom handler">
+    ```svelte
+    <script>
+    	let count = $state(0);
+    	
+    	$inspect(count).with((type, value) => {
+    		if (type === 'update') {
+    			console.trace('Count updated to:', value);
+    		}
+    	});
+    </script>
+
+    <button onclick={() => count++}>
+    	Increment
+    </button>
+    ```
+  </Tab>
+  <Tab title="Trace effects">
+    ```svelte
+    <script>
+    	let a = $state(0);
+    	let b = $state(0);
+    	
+    	$effect(() => {
+    		$inspect.trace('my effect');
+    		console.log(a + b);
+    	});
+    </script>
+
+    <button onclick={() => a++}>Increment A</button>
+    <button onclick={() => b++}>Increment B</button>
+    ```
+  </Tab>
+</Tabs>

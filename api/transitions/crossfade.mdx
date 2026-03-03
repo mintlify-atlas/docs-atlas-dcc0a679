@@ -1,0 +1,129 @@
+---
+title: crossfade
+description: API reference for the crossfade transition pair in Svelte
+---
+
+The `crossfade` function creates a pair of [transitions](/api/transitions/fade) called `send` and `receive`. When an element is 'sent', it looks for a corresponding element being 'received', and generates a transition that transforms the element to its counterpart's position and fades it out. When an element is 'received', the reverse happens. If there is no counterpart, the `fallback` transition is used.
+
+This is useful for creating smooth transitions between lists, such as a todo list where items move between "active" and "completed" states.
+
+## Usage
+
+```svelte
+<script>
+	import { crossfade } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+
+	const [send, receive] = crossfade({
+		duration: 400,
+		easing: quintOut
+	});
+
+	let todos = [
+		{ id: 1, done: false, text: 'Learn Svelte' },
+		{ id: 2, done: false, text: 'Build an app' }
+	];
+</script>
+
+<div class="active">
+	{#each todos.filter(t => !t.done) as todo (todo.id)}
+		<div in:receive={{ key: todo.id }} out:send={{ key: todo.id }}>
+			{todo.text}
+		</div>
+	{/each}
+</div>
+
+<div class="done">
+	{#each todos.filter(t => t.done) as todo (todo.id)}
+		<div in:receive={{ key: todo.id }} out:send={{ key: todo.id }}>
+			{todo.text}
+		</div>
+	{/each}
+</div>
+```
+
+## Parameters
+
+The `crossfade` function accepts a configuration object with the following parameters:
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number | function" default="(d) => Math.sqrt(d) * 30">
+  Duration of the transition in milliseconds, or a function that takes the distance (in pixels) between the two elements and returns a duration
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+<ParamField path="fallback" type="function">
+  A transition to use when there is no matching element. Receives `(node, params, intro)` and should return a `TransitionConfig`
+</ParamField>
+
+## Return value
+
+The `crossfade` function returns a tuple `[send, receive]` containing two transition functions. Each transition function is used with the `in:` and `out:` directives and requires a `key` parameter to match corresponding elements:
+
+```svelte
+in:receive={{ key: someId }}
+out:send={{ key: someId }}
+```
+
+## Complete example
+
+```svelte
+<script>
+	import { crossfade } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+	import { fade } from 'svelte/transition';
+
+	const [send, receive] = crossfade({
+		duration: 300,
+		easing: quintOut,
+		// Fallback for elements without a counterpart
+		fallback: (node, params) => fade(node, { duration: 200 })
+	});
+
+	let items = [
+		{ id: 1, list: 'a', text: 'Item 1' },
+		{ id: 2, list: 'a', text: 'Item 2' },
+		{ id: 3, list: 'b', text: 'Item 3' }
+	];
+
+	function move(id, targetList) {
+		items = items.map(item =>
+			item.id === id ? { ...item, list: targetList } : item
+		);
+	}
+</script>
+
+<div class="lists">
+	<div class="list">
+		<h2>List A</h2>
+		{#each items.filter(i => i.list === 'a') as item (item.id)}
+			<div
+				in:receive={{ key: item.id }}
+				out:send={{ key: item.id }}
+				on:click={() => move(item.id, 'b')}
+			>
+				{item.text}
+			</div>
+		{/each}
+	</div>
+
+	<div class="list">
+		<h2>List B</h2>
+		{#each items.filter(i => i.list === 'b') as item (item.id)}
+			<div
+				in:receive={{ key: item.id }}
+				out:send={{ key: item.id }}
+				on:click={() => move(item.id, 'a')}
+			>
+				{item.text}
+			</div>
+		{/each}
+	</div>
+</div>
+```

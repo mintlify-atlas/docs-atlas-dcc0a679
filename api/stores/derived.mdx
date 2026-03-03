@@ -1,0 +1,252 @@
+---
+title: derived
+description: Create a derived store by synchronizing one or more readable stores
+---
+
+Create a derived value store by synchronizing one or more readable stores and applying an aggregation function over their input values.
+
+## Usage
+
+```ts
+import { derived, writable } from 'svelte/store';
+
+const count = writable(1);
+const doubled = derived(count, $count => $count * 2);
+```
+
+## Signature
+
+### Auto-update variant
+
+```ts
+function derived<S extends Stores, T>(
+  stores: S,
+  fn: (values: StoresValues<S>) => T,
+  initial_value?: T
+): Readable<T>
+```
+
+### Manual-update variant
+
+```ts
+function derived<S extends Stores, T>(
+  stores: S,
+  fn: (
+    values: StoresValues<S>,
+    set: (value: T) => void,
+    update: (fn: Updater<T>) => void
+  ) => Unsubscriber | void,
+  initial_value?: T
+): Readable<T>
+```
+
+<ParamField path="stores" type="Readable<any> | Array<Readable<any>>">
+  A single store or an array of stores to derive from.
+</ParamField>
+
+<ParamField path="fn" type="Function">
+  The derivation function. Has two variants:
+
+  **Auto-update**: If the function has fewer than 2 parameters, the return value becomes the derived value:
+  ```ts
+  (values: StoresValues<S>) => T
+  ```
+
+  **Manual-update**: If the function has 2 or more parameters, it receives `set` and `update` callbacks and can return a cleanup function:
+  ```ts
+  (
+    values: StoresValues<S>,
+    set: (value: T) => void,
+    update: (fn: Updater<T>) => void
+  ) => Unsubscriber | void
+  ```
+</ParamField>
+
+<ParamField path="initial_value" type="T" optional>
+  The initial value of the derived store before the derivation function is first called.
+</ParamField>
+
+<ResponseField name="Readable<T>" type="object">
+  A readable store containing the derived value.
+
+  <ResponseField name="subscribe" type="(run: Subscriber<T>, invalidate?: () => void) => Unsubscriber">
+    Subscribe to value changes. The `run` callback is called immediately with the current value and then called again whenever any of the input stores change.
+    
+    Returns an unsubscriber function.
+  </ResponseField>
+</ResponseField>
+
+## Examples
+
+### Derive from single store
+
+```svelte
+<script>
+  import { derived, writable } from 'svelte/store';
+
+  const count = writable(1);
+  const doubled = derived(count, $count => $count * 2);
+</script>
+
+<p>Count: {$count}</p>
+<p>Doubled: {$doubled}</p>
+
+<button on:click={() => count.update(n => n + 1)}>Increment</button>
+```
+
+### Derive from multiple stores
+
+```svelte
+<script>
+  import { derived, writable } from 'svelte/store';
+
+  const firstName = writable('Alice');
+  const lastName = writable('Smith');
+
+  const fullName = derived(
+    [firstName, lastName],
+    ([$firstName, $lastName]) => `${$firstName} ${$lastName}`
+  );
+</script>
+
+<p>Full name: {$fullName}</p>
+
+<input bind:value={$firstName} placeholder="First name" />
+<input bind:value={$lastName} placeholder="Last name" />
+```
+
+### Manual control with set
+
+Use the manual-update variant when you need async operations or more control:
+
+```ts
+import { derived, writable } from 'svelte/store';
+
+const userId = writable(1);
+
+const user = derived(
+  userId,
+  ($userId, set) => {
+    // Async operation
+    fetch(`/api/users/${$userId}`)
+      .then(res => res.json())
+      .then(data => set(data));
+
+    // Optional: return cleanup function
+    return () => {
+      console.log('Cleaning up');
+    };
+  },
+  // Initial value while loading
+  { name: 'Loading...', id: 0 }
+);
+```
+
+### Delayed derived store
+
+```ts
+import { derived, writable } from 'svelte/store';
+
+const search = writable('');
+
+// Debounced search query
+const debouncedSearch = derived(
+  search,
+  ($search, set) => {
+    const timeout = setTimeout(() => {
+      set($search);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  },
+  ''
+);
+```
+
+### Chaining derived stores
+
+```ts
+import { derived, writable } from 'svelte/store';
+
+const items = writable([
+  { name: 'Apple', price: 1.99 },
+  { name: 'Banana', price: 0.99 },
+  { name: 'Cherry', price: 2.99 }
+]);
+
+const prices = derived(
+  items,
+  $items => $items.map(item => item.price)
+);
+
+const total = derived(
+  prices,
+  $prices => $prices.reduce((sum, price) => sum + price, 0)
+);
+```
+
+### Complex derivation
+
+```ts
+import { derived, writable } from 'svelte/store';
+
+const temperature = writable(0);
+const unit = writable('C'); // 'C' or 'F'
+
+const displayTemperature = derived(
+  [temperature, unit],
+  ([$temperature, $unit]) => {
+    if ($unit === 'F') {
+      return ($temperature * 9/5) + 32;
+    }
+    return $temperature;
+  }
+);
+
+const temperatureText = derived(
+  [displayTemperature, unit],
+  ([$displayTemperature, $unit]) => {
+    return `${$displayTemperature.toFixed(1)}°${$unit}`;
+  }
+);
+```
+
+### Auto-subscription with $
+
+```svelte
+<script>
+  import { derived, writable } from 'svelte/store';
+
+  const count = writable(1);
+  const doubled = derived(count, $count => $count * 2);
+</script>
+
+<!-- Automatically subscribes to derived store -->
+<h1>Doubled: {$doubled}</h1>
+```
+
+## TypeScript
+
+```ts
+import { derived, writable, type Readable } from 'svelte/store';
+
+interface User {
+  name: string;
+  age: number;
+}
+
+const user = writable<User>({
+  name: 'Alice',
+  age: 30
+});
+
+const userName: Readable<string> = derived(
+  user,
+  $user => $user.name
+);
+
+const userInfo: Readable<string> = derived(
+  user,
+  $user => `${$user.name} is ${$user.age} years old`
+);
+```

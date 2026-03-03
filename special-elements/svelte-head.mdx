@@ -1,0 +1,167 @@
+---
+title: '<svelte:head>'
+description: 'Insert elements into the document head'
+---
+
+```svelte
+<svelte:head>...</svelte:head>
+```
+
+This element makes it possible to insert elements into `document.head`. During server-side rendering, `head` content is exposed separately to the main `body` content.
+
+<Note>
+As with `<svelte:window>`, `<svelte:document>` and `<svelte:body>`, this element may only appear at the top level of your component and must never be inside a block or element.
+</Note>
+
+## Usage
+
+### Basic meta tags
+
+```svelte
+<svelte:head>
+  <title>Hello world!</title>
+  <meta name="description" content="This is where the description goes for SEO" />
+</svelte:head>
+```
+
+### Dynamic page title
+
+```svelte
+<script>
+  let title = $state('My Page');
+</script>
+
+<svelte:head>
+  <title>{title}</title>
+</svelte:head>
+
+<input bind:value={title} />
+```
+
+### OpenGraph meta tags
+
+```svelte
+<script>
+  let pageTitle = 'Amazing Article';
+  let pageDescription = 'Read this amazing article';
+  let pageImage = 'https://example.com/image.jpg';
+</script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDescription} />
+  
+  <!-- OpenGraph tags -->
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDescription} />
+  <meta property="og:image" content={pageImage} />
+  <meta property="og:type" content="article" />
+  
+  <!-- Twitter Card tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={pageTitle} />
+  <meta name="twitter:description" content={pageDescription} />
+  <meta name="twitter:image" content={pageImage} />
+</svelte:head>
+```
+
+### Stylesheets and fonts
+
+```svelte
+<svelte:head>
+  <link rel="stylesheet" href="/styles/custom.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+</svelte:head>
+```
+
+### Favicon
+
+```svelte
+<svelte:head>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+</svelte:head>
+```
+
+### Canonical URL
+
+```svelte
+<script>
+  let canonicalUrl = 'https://example.com/page';
+</script>
+
+<svelte:head>
+  <link rel="canonical" href={canonicalUrl} />
+</svelte:head>
+```
+
+### Inline styles
+
+```svelte
+<svelte:head>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+  </style>
+</svelte:head>
+```
+
+### Script tags
+
+```svelte
+<svelte:head>
+  <script src="https://cdn.example.com/library.js"></script>
+  <script>
+    // Inline script
+    window.myGlobal = 'value';
+  </script>
+</svelte:head>
+```
+
+### Viewport and mobile optimization
+
+```svelte
+<svelte:head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ff3e00" />
+</svelte:head>
+```
+
+### Language and character encoding
+
+```svelte
+<svelte:head>
+  <meta charset="utf-8" />
+  <html lang="en" />
+</svelte:head>
+```
+
+## Server-Side Rendering
+
+During server-side rendering, the content of `<svelte:head>` is extracted separately from the body content. This allows you to insert the head content into the HTML document's `<head>` section:
+
+```js
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const { head, body } = await render(App);
+
+const html = `
+<!DOCTYPE html>
+<html>
+  <head>
+    ${head}
+  </head>
+  <body>
+    ${body}
+  </body>
+</html>
+`;
+```
+
+## Multiple svelte:head Elements
+
+If multiple components define `<svelte:head>` elements, their contents will be combined. Later elements will appear after earlier ones in the document head.

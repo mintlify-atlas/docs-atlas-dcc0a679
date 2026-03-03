@@ -1,0 +1,213 @@
+---
+title: Basic Markup
+description: Learn how to write HTML, use expressions, and add comments in Svelte templates
+---
+
+Markup inside a Svelte component can be thought of as HTML++. You can use standard HTML elements alongside dynamic expressions and special Svelte features.
+
+## HTML Tags
+
+Svelte distinguishes between regular HTML elements and components based on naming:
+
+- **Lowercase tags** like `<div>` denote regular HTML elements
+- **Capitalized tags** or **dot notation** like `<Widget>` or `<my.stuff>` indicate components
+
+```svelte
+<script>
+  import Widget from './Widget.svelte';
+</script>
+
+<div>
+  <Widget />
+</div>
+```
+
+## Element Attributes
+
+Attributes work like their HTML counterparts, but with powerful enhancements for dynamic values.
+
+### Static Attributes
+
+```svelte
+<div class="foo">
+  <button disabled>can't touch this</button>
+</div>
+```
+
+Values may be unquoted:
+
+```svelte
+<input type=checkbox />
+```
+
+### Dynamic Attributes
+
+Attribute values can contain JavaScript expressions:
+
+```svelte
+<a href="page/{p}">page {p}</a>
+```
+
+Or they can be JavaScript expressions:
+
+```svelte
+<button disabled={!clickable}>...</button>
+```
+
+### Boolean and Nullish Attributes
+
+<CardGroup cols={2}>
+  <Card title="Boolean Attributes">
+    Included if [truthy](https://developer.mozilla.org/en-US/docs/Glossary/Truthy), excluded if [falsy](https://developer.mozilla.org/en-US/docs/Glossary/Falsy)
+    
+    ```svelte
+    <input required={false} placeholder="Not required" />
+    ```
+  </Card>
+  
+  <Card title="Other Attributes">
+    Included unless [nullish](https://developer.mozilla.org/en-US/docs/Glossary/Nullish) (`null` or `undefined`)
+    
+    ```svelte
+    <div title={null}>No title attribute</div>
+    ```
+  </Card>
+</CardGroup>
+
+### Attribute Shorthand
+
+When attribute name and value match, use shorthand syntax:
+
+```svelte
+<button {disabled}>...</button>
+<!-- equivalent to -->
+<button disabled={disabled}>...</button>
+```
+
+## Component Props
+
+Values passed to components are called **props** (not attributes):
+
+```svelte
+<Widget foo={bar} answer={42} text="hello" />
+```
+
+Shorthand syntax works for props too:
+
+```svelte
+<Widget {foo} {bar} />
+```
+
+## Spread Attributes
+
+Pass multiple attributes or props at once using spread syntax:
+
+```svelte
+<Widget a="b" {...things} c="d" />
+```
+
+<Warning>
+  Order matters! Later attributes override earlier ones. In the example above, if `things.a` exists it overrides `a="b"`, while `c="d"` overrides `things.c`.
+</Warning>
+
+## Text Expressions
+
+Embed JavaScript expressions in text using curly braces:
+
+```svelte
+<h1>Hello {name}!</h1>
+<p>{a} + {b} = {a + b}</p>
+```
+
+### Expression Behavior
+
+- `null` or `undefined` values are omitted
+- All other values are [coerced to strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String#string_coercion)
+- Regular expressions need parentheses:
+
+```svelte
+<div>{(/^[A-Za-z ]+$/).test(value) ? x : y}</div>
+```
+
+### Rendering HTML
+
+Expressions are escaped by default. To render HTML, use the `{@html}` tag:
+
+```svelte
+{@html potentiallyUnsafeHtmlString}
+```
+
+<Warning>
+  Always escape user-provided strings or use trusted values to prevent [XSS attacks](https://owasp.org/www-community/attacks/xss/).
+</Warning>
+
+## Comments
+
+Use HTML comments inside components:
+
+```svelte
+<!-- this is a comment! -->
+<h1>Hello world</h1>
+```
+
+### Disabling Warnings
+
+Comments starting with `svelte-ignore` disable warnings for the next markup block:
+
+```svelte
+<!-- svelte-ignore a11y_autofocus -->
+<input bind:value={name} autofocus />
+```
+
+### Component Documentation
+
+Add `@component` comments to show documentation when hovering over component usage:
+
+```svelte
+<!--
+@component
+- You can use markdown here
+- Usage:
+  ```html
+  <Main name="Arethra" />
+  ```
+-->
+<script>
+  let { name } = $props();
+</script>
+
+<main>
+  <h1>Hello, {name}</h1>
+</main>
+```
+
+## Special Characters
+
+Include curly braces in templates using HTML entities:
+
+- `{` can be written as `&lbrace;`, `&lcub;`, or `&#123;`
+- `}` can be written as `&rbrace;`, `&rcub;`, or `&#125;`
+
+## Real-World Example
+
+Here's a complete example combining multiple features:
+
+```svelte
+<script>
+  let name = $state('World');
+  let count = $state(0);
+  let isActive = $state(true);
+</script>
+
+<div class="container" class:active={isActive}>
+  <h1>Hello {name}!</h1>
+  
+  <!-- Dynamic attribute -->
+  <button disabled={count >= 10} onclick={() => count++}>
+    Clicked {count} times
+  </button>
+  
+  <!-- Attribute shorthand -->
+  <input bind:value={name} placeholder="Enter your name" />
+</div>
+```

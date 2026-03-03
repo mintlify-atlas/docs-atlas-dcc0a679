@@ -1,0 +1,434 @@
+---
+title: Server-Side Rendering (SSR)
+description: Understanding server-side rendering, client-side rendering, and hydration in Svelte applications
+---
+
+Svelte components can be rendered on the server, sent as HTML to the browser, and then made interactive through a process called hydration. This approach improves initial page load performance and SEO.
+
+## Rendering Modes
+
+### Client-Side Rendering (CSR)
+
+The browser downloads JavaScript, executes it, and renders the page:
+
+```js
+import { mount } from 'svelte';
+import App from './App.svelte';
+
+// Component is created and rendered in the browser
+const app = mount(App, {
+  target: document.body,
+  props: { name: 'world' }
+});
+```
+
+**Pros**:
+- Full interactivity immediately
+- Simpler deployment (static hosting)
+- No server required
+
+**Cons**:
+- Slower initial load
+- Poor SEO (content not in initial HTML)
+- Blank page until JavaScript executes
+
+### Server-Side Rendering (SSR)
+
+The server generates HTML and sends it to the browser:
+
+```js
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+// Generate HTML on the server
+const { html, head } = await render(App, {
+  props: { name: 'world' }
+});
+
+const response = `
+  <!DOCTYPE html>
+  <html>
+    <head>${head}</head>
+    <body>${html}</body>
+  </html>
+`;
+```
+
+**Pros**:
+- Fast initial page load
+- Better SEO (crawlers see content)
+- Works without JavaScript
+
+**Cons**:
+- No interactivity until JavaScript loads
+- Requires server infrastructure
+- More complex deployment
+
+### Hydration (SSR + CSR)
+
+Combine SSR and CSR for the best of both worlds:
+
+<Steps>
+  1. **Server** renders component to HTML
+  2. **Browser** receives and displays HTML immediately
+  3. **JavaScript** downloads and executes
+  4. **Hydration** attaches event listeners and makes the page interactive
+</Steps>
+
+```js
+import { hydrate } from 'svelte';
+import App from './App.svelte';
+
+// Pick up server-rendered HTML and make it interactive
+const app = hydrate(App, {
+  target: document.body,
+  props: { name: 'world' }
+});
+```
+
+<Note>
+Svelte components are **always hydratable** in Svelte 5. The `hydratable` compiler option from Svelte 4 has been removed.
+</Note>
+
+## Using the Render API
+
+### Basic Server Rendering
+
+The `render` function from `svelte/server` generates HTML:
+
+```js
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const result = await render(App, {
+  props: { user: { name: 'Alice' } }
+});
+
+console.log(result.html);  // <div>Hello Alice</div>
+console.log(result.head);  // <svelte:head> contents
+```
+
+### Handling `<svelte:head>`
+
+Content in `<svelte:head>` is returned separately:
+
+```svelte title="App.svelte"
+<svelte:head>
+  <title>My App</title>
+  <meta name="description" content="An amazing app" />
+</svelte:head>
+
+<h1>Welcome</h1>
+```
+
+```js
+const { html, head } = await render(App);
+// head: '<title>My App</title><meta name="description"...'
+// html: '<h1>Welcome</h1>'
+```
+
+### Async Server Rendering
+
+Svelte 5 supports asynchronous server rendering with `await` expressions:
+
+```svelte
+<script>
+  import { getUser } from './api';
+  
+  // This works on the server!
+  const user = await getUser();
+</script>
+
+<h1>Hello {user.name}</h1>
+```
+
+```js
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+// await the render call
+const { html } = await render(App);
+```
+
+<Warning>
+When using `await` in components, you must `await` the `render()` call. The promise will resolve once all async operations complete.
+</Warning>
+
+## Hydration Process
+
+### How Hydration Works
+
+During hydration, Svelte:
+
+1. Walks the server-rendered DOM
+2. Attaches event listeners
+3. Initializes reactive state
+4. Makes the application interactive
+
+```js
+// server.js - Generate HTML
+const { html, head } = await render(App, { props: { count: 0 } });
+
+// client.js - Hydrate the HTML
+import { hydrate } from 'svelte';
+hydrate(App, { target: document.body, props: { count: 0 } });
+```
+
+<Tip>
+Props passed to `hydrate()` should match the props used during `render()` to avoid hydration mismatches.
+</Tip>
+
+### Hydration Markers
+
+Svelte 5 uses HTML comments as markers for efficient hydration:
+
+```html
+<!-- Server-rendered HTML includes markers -->
+<div>
+  <!--[-->Hello<!--]-->
+</div>
+```
+
+<Warning>
+Don't remove comments from server-rendered HTML! They're essential for proper hydration.
+</Warning>
+
+### Hydration Mismatches
+
+A hydration mismatch occurs when server and client HTML differ:
+
+```svelte
+<script>
+  // ❌ Bad: Different value on server vs client
+  const time = new Date().toLocaleTimeString();
+</script>
+
+<p>The time is {time}</p>
+```
+
+This causes a `hydration_mismatch` warning because the time will be different when rendered on the server vs. when hydrating on the client.
+
+**Solutions**:
+
+1. Use client-only rendering for dynamic values:
+```svelte
+<script>
+  import { browser } from '$app/environment';
+  let time = $state('');
+  
+  $effect(() => {
+    time = new Date().toLocaleTimeString();
+  });
+</script>
+
+{#if browser}
+  <p>The time is {time}</p>
+{/if}
+```
+
+2. Use `hydratable` for values that should be consistent:
+```svelte
+<script>
+  import { hydratable } from 'svelte';
+  
+  // Same value on server and client
+  const time = await hydratable('time', () => 
+    new Date().toLocaleTimeString()
+  );
+</script>
+```
+
+## Optimizing Data Fetching
+
+### The `hydratable` API
+
+Avoid fetching data twice (server + client) with `hydratable`:
+
+```svelte
+<script>
+  import { hydratable } from 'svelte';
+  import { getUser } from './api';
+
+  // ✅ Good: Fetched once on server, reused on client
+  const user = await hydratable('user', () => getUser());
+</script>
+
+<h1>{user.name}</h1>
+```
+
+<Steps>
+  1. **Server**: Runs `getUser()`, serializes result into HTML
+  2. **Client**: Reads serialized data, skips `getUser()` call
+  3. **Post-hydration**: Future calls run `getUser()` normally
+</Steps>
+
+### Serialization
+
+`hydratable` uses [`devalue`](https://npmjs.com/package/devalue) which supports:
+
+- Primitives (string, number, boolean, null, undefined)
+- Objects and arrays
+- `Date`, `Map`, `Set`, `RegExp`
+- `BigInt`, `URL`
+- Promises (Svelte-specific enhancement)
+
+```svelte
+<script>
+  import { hydratable } from 'svelte';
+
+  const data = await hydratable('data', () => ({
+    date: new Date(),
+    users: new Set(['alice', 'bob']),
+    promise: Promise.resolve(42)
+  }));
+</script>
+
+{await data.promise}
+```
+
+<Warning>
+Functions, symbols, and DOM nodes cannot be serialized. Keep `hydratable` data JSON-like when possible.
+</Warning>
+
+### Content Security Policy (CSP)
+
+`hydratable` injects a script tag. For CSP compliance, provide a nonce:
+
+```js
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const nonce = crypto.randomUUID();
+
+const { head, body } = await render(App, {
+  csp: { nonce }
+});
+
+// Add the same nonce to your CSP header
+response.headers.set(
+  'Content-Security-Policy',
+  `script-src 'nonce-${nonce}'`
+);
+```
+
+For static sites, use hash-based CSP:
+
+```js
+const { head, body, hashes } = await render(App, {
+  csp: { hash: true }
+});
+
+const csp = `script-src ${hashes.script.map(h => `'${h}'`).join(' ')}`;
+```
+
+<Tip>
+Prefer `nonce` over `hash` for dynamic SSR. Hash-based CSP will interfere with streaming SSR in future Svelte versions.
+</Tip>
+
+## SSR Considerations
+
+### Browser-Only Code
+
+Some code should only run in the browser:
+
+```svelte
+<script>
+  import { browser } from '$app/environment';
+  
+  // ❌ Bad: window is undefined on server
+  const width = window.innerWidth;
+  
+  // ✅ Good: Check environment
+  let width = $state(0);
+  
+  $effect(() => {
+    // Effects don't run on server
+    width = window.innerWidth;
+  });
+</script>
+```
+
+<Note>
+`$effect` callbacks **never run on the server**, so you don't need `if (browser)` checks inside them.
+</Note>
+
+### Lifecycle Hooks
+
+Only `onDestroy` runs during SSR:
+
+```svelte
+<script>
+  import { onMount, onDestroy } from 'svelte';
+  
+  onMount(() => {
+    console.log('Client only');
+  });
+  
+  onDestroy(() => {
+    console.log('Runs on both server and client');
+  });
+</script>
+```
+
+### Invalid HTML Structure
+
+Browsers "repair" invalid HTML, causing hydration mismatches:
+
+```svelte
+<!-- ❌ Bad: Browser will restructure this -->
+<table>
+  <tr><td>Cell</td></tr>
+</table>
+
+<!-- ✅ Good: Valid HTML structure -->
+<table>
+  <tbody>
+    <tr><td>Cell</td></tr>
+  </tbody>
+</table>
+```
+
+Svelte warns about invalid structures with `node_invalid_placement_ssr`.
+
+## Using SvelteKit
+
+For production applications, use [SvelteKit](https://kit.svelte.dev/) which handles:
+
+- Automatic SSR/hydration setup
+- Data loading with `load` functions
+- Routing and navigation
+- Deployment adapters
+- Streaming SSR
+- Prerendering
+
+```svelte title="+page.svelte"
+<script>
+  // SvelteKit's load function runs on server
+  export let data;
+</script>
+
+<h1>{data.title}</h1>
+```
+
+```js title="+page.server.js"
+export async function load() {
+  return {
+    title: 'My Page'
+  };
+}
+```
+
+<Tip>
+SvelteKit is the recommended way to build Svelte apps with SSR. It handles the complexity of server/client coordination for you.
+</Tip>
+
+## Best Practices
+
+<Steps>
+  1. **Match server and client props** - Prevents hydration mismatches
+  2. **Use `hydratable` for async data** - Avoid duplicate fetching
+  3. **Respect browser-only APIs** - Check for `window`, `document` availability
+  4. **Write valid HTML** - Prevents browser repairs that break hydration
+  5. **Test with JavaScript disabled** - Ensure core content is accessible
+  6. **Don't remove HTML comments** - Required for Svelte 5 hydration
+</Steps>

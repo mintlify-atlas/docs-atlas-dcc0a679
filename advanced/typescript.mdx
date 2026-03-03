@@ -1,0 +1,350 @@
+---
+title: TypeScript Support
+description: Complete guide to using TypeScript with Svelte including configuration, typing props, generics, and best practices
+---
+
+Svelte has excellent built-in TypeScript support, allowing you to catch errors early and improve code quality with static type checking.
+
+## Basic Setup
+
+### Using `<script lang="ts">`
+
+To use TypeScript in your Svelte components, add the `lang="ts"` attribute to your script tags:
+
+```svelte
+<script lang="ts">
+  let name: string = 'world';
+
+  function greet(name: string) {
+    alert(`Hello, ${name}!`);
+  }
+</script>
+
+<button onclick={(e: Event) => greet(e.target.innerText)}>
+  {name as string}
+</button>
+```
+
+<Note>
+Only **type-only** features are supported out of the box. Features that require TypeScript to output code (like enums or decorator metadata) need a preprocessor.
+</Note>
+
+### Type-Only Features Supported
+
+Svelte's built-in TypeScript support includes:
+
+- Type annotations
+- Interface declarations
+- Type assertions
+- Generic types
+- Type imports/exports
+
+### Features Requiring a Preprocessor
+
+The following TypeScript features require a preprocessor setup:
+
+- Enums
+- Parameter properties (`private`, `protected`, `public` modifiers in constructors)
+- Features not yet in ECMAScript Stage 4
+
+## Preprocessor Configuration
+
+### Using Vite or SvelteKit
+
+For full TypeScript support, configure `vitePreprocess` in your `svelte.config.js`:
+
+```ts title="svelte.config.js"
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
+const config = {
+  preprocess: vitePreprocess()
+};
+
+export default config;
+```
+
+<Steps>
+  1. Create a new SvelteKit project with TypeScript: `npx sv create`
+  2. Choose the TypeScript option during setup
+  3. Vite preprocessing will be automatically configured
+</Steps>
+
+### Other Build Tools
+
+For Rollup or Webpack:
+
+1. Install dependencies:
+   ```bash
+   npm install -D typescript svelte-preprocess
+   ```
+
+2. Configure the preprocessor in your bundler plugin configuration
+
+<Warning>
+For new projects, we strongly recommend using SvelteKit or Vite instead of Rollup/Webpack for better TypeScript integration.
+</Warning>
+
+## TypeScript Configuration
+
+### Required tsconfig.json Settings
+
+Ensure your `tsconfig.json` includes these critical settings:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true
+  }
+}
+```
+
+<Note>
+- **target**: Use at least `ES2015` so classes aren't transpiled to functions
+- **verbatimModuleSyntax**: Keeps import/export statements as-is
+- **isolatedModules**: Ensures each file can be compiled independently (required for Vite)
+</Note>
+
+## Typing Components
+
+### Typing `$props`
+
+Define props using TypeScript interfaces:
+
+```svelte
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+
+  interface Props {
+    requiredProperty: number;
+    optionalProperty?: boolean;
+    snippetWithStringArgument: Snippet<[string]>;
+    eventHandler: (arg: string) => void;
+    [key: string]: unknown;
+  }
+
+  let {
+    requiredProperty,
+    optionalProperty,
+    snippetWithStringArgument,
+    eventHandler,
+    ...everythingElse
+  }: Props = $props();
+</script>
+
+<button onclick={() => eventHandler('clicked')}>
+  {@render snippetWithStringArgument('hello')}
+</button>
+```
+
+### Generic Components
+
+Create components with generic type relationships using the `generics` attribute:
+
+```svelte
+<script lang="ts" generics="Item extends { text: string }">
+  interface Props {
+    items: Item[];
+    select(item: Item): void;
+  }
+
+  let { items, select }: Props = $props();
+</script>
+
+{#each items as item}
+  <button onclick={() => select(item)}>
+    {item.text}
+  </button>
+{/each}
+```
+
+The `generics` attribute accepts the same syntax as TypeScript generic parameters:
+
+- Multiple generics: `generics="T, U"`
+- Constraints: `generics="T extends string"`
+- Defaults: `generics="T = string"`
+
+### Typing Wrapper Components
+
+For components that wrap native elements, use types from `svelte/elements`:
+
+```svelte
+<script lang="ts">
+  import type { HTMLButtonAttributes } from 'svelte/elements';
+
+  let { children, ...rest }: HTMLButtonAttributes = $props();
+</script>
+
+<button {...rest}>
+  {@render children?.()}
+</button>
+```
+
+For elements without dedicated types:
+
+```svelte
+<script lang="ts">
+  import type { SvelteHTMLElements } from 'svelte/elements';
+
+  let { children, ...rest }: SvelteHTMLElements['div'] = $props();
+</script>
+
+<div {...rest}>
+  {@render children?.()}
+</div>
+```
+
+## Typing State and Derived Values
+
+### Typing `$state`
+
+Type state variables like regular TypeScript variables:
+
+```ts
+let count: number = $state(0);
+let user: User | null = $state(null);
+```
+
+Without an initial value, the type includes `undefined`:
+
+```ts
+let count: number = $state(); // Error: Type 'number | undefined' is not assignable to 'number'
+```
+
+Use type assertions when you know the value will be defined:
+
+```ts
+class Counter {
+  count = $state() as number;
+  
+  constructor(initial: number) {
+    this.count = initial;
+  }
+}
+```
+
+### Typing `$derived`
+
+Derived values infer their type from the expression:
+
+```ts
+let count = $state(0);
+let doubled = $derived(count * 2); // type: number
+```
+
+## Component Type Utilities
+
+### The `Component` Type
+
+Use the `Component` type to constrain dynamic components:
+
+```svelte
+<script lang="ts">
+  import type { Component } from 'svelte';
+
+  interface Props {
+    // Only components with at most the "prop" property can be passed
+    DynamicComponent: Component<{ prop: string }>;
+  }
+
+  let { DynamicComponent }: Props = $props();
+</script>
+
+<DynamicComponent prop="foo" />
+```
+
+### Extracting Component Props
+
+Use `ComponentProps` to get a component's prop types:
+
+```ts
+import type { Component, ComponentProps } from 'svelte';
+import MyComponent from './MyComponent.svelte';
+
+function withProps<TComponent extends Component<any>>(
+  component: TComponent,
+  props: ComponentProps<TComponent>
+) {}
+
+// Type-checked!
+withProps(MyComponent, { foo: 'bar' });
+```
+
+### Component Constructor and Instance Types
+
+```svelte
+<script lang="ts">
+  import MyComponent from './MyComponent.svelte';
+
+  let componentConstructor: typeof MyComponent = MyComponent;
+  let componentInstance: MyComponent;
+</script>
+
+<MyComponent bind:this={componentInstance} />
+```
+
+## Extending DOM Types
+
+For custom or experimental attributes, augment the `svelte/elements` module:
+
+```ts title="additional-svelte-typings.d.ts"
+import { HTMLButtonAttributes } from 'svelte/elements';
+
+declare module 'svelte/elements' {
+  // Add a new element
+  export interface SvelteHTMLElements {
+    'custom-button': HTMLButtonAttributes;
+  }
+
+  // Add a global attribute for all elements
+  export interface HTMLAttributes<T> {
+    globalattribute?: string;
+  }
+
+  // Add a new attribute for button elements
+  export interface HTMLButtonAttributes {
+    veryexperimentalattribute?: string;
+  }
+}
+
+export {}; // ensure this is a module
+```
+
+<Tip>
+Make sure the `.d.ts` file is included in your `tsconfig.json` (e.g., in the `src` directory with `"include": ["src/**/*"]`).
+</Tip>
+
+## IDE Support
+
+### VS Code Extension
+
+Install the [Svelte for VS Code](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) extension for:
+
+- TypeScript error checking in your editor
+- Autocompletion for Svelte syntax
+- Type information on hover
+- Automatic imports
+
+### Command Line Checking
+
+Use `svelte-check` for CI/CD integration:
+
+```bash
+npm install -D svelte-check
+npx svelte-check
+```
+
+## Best Practices
+
+<Steps>
+  1. **Always use interfaces for props** - Provides better error messages and documentation
+  2. **Leverage type inference** - Let TypeScript infer types when possible to reduce verbosity
+  3. **Use strict mode** - Enable `"strict": true` in tsconfig.json for maximum type safety
+  4. **Type event handlers** - Explicitly type event parameters for better IDE support
+  5. **Avoid `any`** - Use `unknown` and type guards instead of bypassing type checking
+</Steps>
+
+<Warning>
+Avoid using features that require runtime type information (like decorators or reflection). Svelte's TypeScript support is compile-time only.
+</Warning>

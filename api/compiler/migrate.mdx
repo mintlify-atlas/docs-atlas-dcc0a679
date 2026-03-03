@@ -1,0 +1,288 @@
+---
+title: migrate()
+description: Automatically migrate Svelte 4 code to Svelte 5 syntax
+---
+
+The `migrate()` function performs a best-effort migration of Svelte 4 code to Svelte 5, transforming legacy syntax to use runes, event attributes, and render tags.
+
+<Warning>
+  The migration is **not perfect** and may require manual adjustments. Always review the migrated code and test thoroughly. The migrator may add `@migration-task` comments where manual intervention is needed.
+</Warning>
+
+## Signature
+
+```ts
+function migrate(
+  source: string,
+  options?: {
+    filename?: string;
+    use_ts?: boolean;
+  }
+): { code: string }
+```
+
+## Parameters
+
+<ParamField path="source" type="string" required>
+  The Svelte 4 component source code to migrate
+</ParamField>
+
+<ParamField path="options.filename" type="string">
+  The filename of the component (used for debugging and self-referencing components)
+</ParamField>
+
+<ParamField path="options.use_ts" type="boolean">
+  Whether to generate TypeScript syntax. If not specified, the migrator will infer from the source code.
+</ParamField>
+
+## Return Value
+
+<ParamField path="code" type="string">
+  The migrated Svelte 5 code. May include `@migration-task` comments for manual review.
+</ParamField>
+
+## What Gets Migrated
+
+The migrator handles:
+
+- **Reactive declarations** (`$:`) → `$derived` and `$effect`
+- **Exported props** (`export let`) → `$props()` destructuring
+- **Reactive statements** → `$effect.pre()` or `run()`
+- **Event handlers** (`on:click`) → event attributes (`onclick`)
+- **Slots** → Snippets (`{@render children()}`)
+- **`<svelte:component>` with dynamic this** → `{@const}` or `$derived`
+- **`<svelte:self>`** → Self-import
+- **CSS selector scoping** → `:global()` where needed
+- **`beforeUpdate`/`afterUpdate`** imports → Removed if unused
+
+## Usage Examples
+
+### Basic Migration
+
+```js
+import { migrate } from 'svelte/compiler';
+
+const svelteV4 = `
+<script>
+  export let count = 0;
+  
+  $: doubled = count * 2;
+  $: console.log('count changed:', count);
+</script>
+
+<button on:click={() => count++}>
+  Clicked {count} times (doubled: {doubled})
+</button>
+`;
+
+const result = migrate(svelteV4);
+console.log(result.code);
+```
+
+Output:
+
+```svelte
+<script>
+  let { count = 0 } = $props();
+  
+  let doubled = $derived(count * 2);
+  $effect.pre(() => {
+    console.log('count changed:', count);
+  });
+</script>
+
+<button onclick={() => count++}>
+  Clicked {count} times (doubled: {doubled})
+</button>
+```
+
+### Migrating Props with TypeScript
+
+```js
+import { migrate } from 'svelte/compiler';
+
+const source = `
+<script lang="ts">
+  export let name: string;
+  export let age: number = 0;
+  export let optional: boolean = false;
+</script>
+
+<h1>Hello {name}, age {age}</h1>
+`;
+
+const result = migrate(source, { use_ts: true });
+```
+
+Output:
+
+```svelte
+<script lang="ts">
+  interface Props {
+    name: string;
+    age?: number;
+    optional?: boolean;
+  }
+
+  let { name, age = 0, optional = false }: Props = $props();
+</script>
+
+<h1>Hello {name}, age {age}</h1>
+```
+
+### Migrating Slots to Snippets
+
+```js
+const source = `
+<script>
+  export let items = [];
+</script>
+
+<ul>
+  {#each items as item}
+    <li>
+      <slot name="item" {item}>Default: {item.name}</slot>
+    </li>
+  {/each}
+</ul>
+
+<slot>No items</slot>
+`;
+
+const result = migrate(source);
+```
+
+Output:
+
+```svelte
+<script>
+  let { items = [], item, children }: {
+    items?: any[];
+    item?: import('svelte').Snippet<[any]>;
+    children?: import('svelte').Snippet;
+  } = $props();
+</script>
+
+<ul>
+  {#each items as item}
+    <li>
+      {#if item}{@render item({ item })}{:else}Default: {item.name}{/if}
+    </li>
+  {/each}
+</ul>
+
+{@render children?.()}
+```
+
+### Migrating Event Handlers
+
+```js
+const source = `
+<script>
+  function handleClick(event) {
+    console.log('clicked', event);
+  }
+</script>
+
+<button on:click={handleClick}>Click me</button>
+<button on:click|preventDefault|stopPropagation={handleClick}>Click me</button>
+`;
+
+const result = migrate(source);
+```
+
+Output:
+
+```svelte
+<script>
+  import { preventDefault, stopPropagation } from 'svelte/legacy';
+  
+  function handleClick(event) {
+    console.log('clicked', event);
+  }
+</script>
+
+<button onclick={handleClick}>Click me</button>
+<button onclick={(e) => { preventDefault(e); stopPropagation(e); handleClick(e); }}>
+  Click me
+</button>
+```
+
+### Programmatic Migration
+
+```js
+import { migrate } from 'svelte/compiler';
+import fs from 'fs';
+import path from 'path';
+import glob from 'glob';
+
+// Migrate all .svelte files in src/
+const files = glob.sync('src/**/*.svelte');
+
+for (const file of files) {
+  const source = fs.readFileSync(file, 'utf-8');
+  const result = migrate(source, { 
+    filename: file,
+    use_ts: file.includes('lang="ts"')
+  });
+  
+  // Check for migration tasks
+  if (result.code.includes('@migration-task')) {
+    console.warn(`⚠️  Manual review needed: ${file}`);
+  }
+  
+  fs.writeFileSync(file, result.code);
+  console.log(`✅ Migrated: ${file}`);
+}
+```
+
+### Handling Migration Tasks
+
+When the migrator can't automatically handle certain patterns, it adds comments:
+
+```svelte
+<!-- @migration-task: Error while migrating Svelte code: can't migrate `$: foo = ...` to `$derived` because there's a variable named derived. Rename the variable and try again or migrate by hand. -->
+
+<!-- @migration-task: svelte:self is deprecated, import this Svelte file into itself instead -->
+
+<!-- @migration-task: migrate this slot by hand, `my-slot-name` is an invalid identifier -->
+```
+
+Search for `@migration-task` in the migrated code and address these manually.
+
+### Using with CLI
+
+Svelte provides a CLI migration tool:
+
+```bash
+# Migrate a single file
+npx svelte-migrate@latest svelte-5 src/App.svelte
+
+# Migrate entire directory
+npx svelte-migrate@latest svelte-5 src/
+
+# Preview without writing
+npx svelte-migrate@latest svelte-5 src/ --dry-run
+```
+
+## Limitations
+
+- **CSS preprocessors**: CSS is blanked during migration. Use a preprocessor-aware tool if needed.
+- **Complex reactive patterns**: Some complex `$:` patterns may not migrate cleanly.
+- **beforeUpdate/afterUpdate**: Must be migrated manually to runes or lifecycle functions.
+- **Store auto-subscription**: `$store` syntax is not migrated (still works in Svelte 5).
+- **Component events**: Must be migrated to callback props manually.
+
+## Best Practices
+
+1. **Commit before migrating** - Always have a clean git state
+2. **Review the output** - Don't blindly accept migrations
+3. **Test thoroughly** - Run your test suite after migration
+4. **Migrate incrementally** - Start with leaf components
+5. **Read migration tasks** - Address all `@migration-task` comments
+
+## Related
+
+- [Svelte 5 Migration Guide](https://svelte.dev/docs/svelte/v5-migration-guide)
+- [compile()](/api/compiler/compile) - Compile migrated code
+- [Runes Documentation](https://svelte.dev/docs/svelte/what-are-runes)

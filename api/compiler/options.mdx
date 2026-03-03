@@ -1,0 +1,353 @@
+---
+title: Compiler Options
+description: Configuration options for the Svelte compiler
+---
+
+The Svelte compiler accepts a `CompileOptions` object that controls how your components are compiled.
+
+## Core Options
+
+<ParamField path="filename" type="string">
+  Used for debugging hints and sourcemaps. Your bundler plugin will set it automatically.
+  
+  ```js
+  compile(source, { filename: 'App.svelte' })
+  ```
+</ParamField>
+
+<ParamField path="dev" type="boolean" default="false">
+  If `true`, causes extra code to be added that performs runtime checks and provides debugging information during development.
+  
+  ```js
+  compile(source, { dev: process.env.NODE_ENV === 'development' })
+  ```
+</ParamField>
+
+<ParamField path="generate" type="'client' | 'server' | false" default="'client'">
+  - `'client'`: Emits code designed to run in the browser
+  - `'server'`: Emits code suitable for server-side rendering
+  - `false`: Generates nothing (useful for tooling that only needs warnings)
+  
+  ```js
+  // Client-side bundle
+  compile(source, { generate: 'client' })
+  
+  // SSR bundle
+  compile(source, { generate: 'server' })
+  ```
+</ParamField>
+
+<ParamField path="name" type="string">
+  Sets the name of the resulting JavaScript class (though the compiler will rename it if it would otherwise conflict with other variables in scope). If unspecified, will be inferred from `filename`.
+  
+  ```js
+  compile(source, { name: 'MyComponent' })
+  ```
+</ParamField>
+
+## Component Behavior
+
+<ParamField path="runes" type="boolean | undefined" default="undefined">
+  - `true`: Forces runes mode for the entire component
+  - `false`: Forces the compiler to ignore runes, even if detected
+  - `undefined`: Infers runes mode from component code (default)
+  
+  <Warning>
+    Setting this to `true` in your `svelte.config.js` will force runes mode for your entire project, including `node_modules`. Use [dynamicCompileOptions](https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/config.md#dynamiccompileoptions) in Vite instead.
+  </Warning>
+  
+  ```js
+  compile(source, { runes: true })
+  ```
+</ParamField>
+
+<ParamField path="customElement" type="boolean" default="false">
+  If `true`, tells the compiler to generate a custom element constructor instead of a regular Svelte component.
+  
+  ```js
+  compile(source, { customElement: true })
+  ```
+</ParamField>
+
+<ParamField path="namespace" type="'html' | 'svg' | 'mathml'" default="'html'">
+  The namespace of the component's elements.
+  
+  ```js
+  compile(source, { namespace: 'svg' })
+  ```
+</ParamField>
+
+<ParamField path="accessors" type="boolean" default="false">
+  If `true`, getters and setters will be created for the component's props. If `false`, they will only be created for readonly exported values. If compiling with `customElement: true`, this defaults to `true`.
+  
+  <Warning>
+    Deprecated in Svelte 5 - Has no effect in runes mode
+  </Warning>
+</ParamField>
+
+<ParamField path="immutable" type="boolean" default="false">
+  If `true`, tells the compiler that you promise not to mutate any objects. This allows it to be less conservative about checking whether values have changed.
+  
+  <Warning>
+    Deprecated in Svelte 5 - Has no effect in runes mode
+  </Warning>
+</ParamField>
+
+## CSS Options
+
+<ParamField path="css" type="'injected' | 'external'">
+  - `'injected'`: Styles are included in the `head` when using `render()`, and injected when the component mounts. For custom elements, styles are injected to the shadow root.
+  - `'external'`: CSS is only returned in the `css` field of the compilation result. Most bundler plugins use this for better performance (smaller JS bundles, cacheable CSS files).
+  
+  Always `'injected'` when `customElement: true`.
+  
+  ```js
+  compile(source, { css: 'external' })
+  ```
+</ParamField>
+
+<ParamField path="cssHash" type="CssHashGetter">
+  A function that takes `{ hash, css, name, filename }` and returns the string used as a classname for scoped CSS. Defaults to `svelte-${hash(filename ?? css)}`.
+  
+  ```js
+  compile(source, {
+    cssHash: ({ hash, css, name, filename }) => {
+      return `custom-${hash(css)}`;
+    }
+  })
+  ```
+  
+  Type:
+  ```ts
+  type CssHashGetter = (args: {
+    name: string;
+    filename: string;
+    css: string;
+    hash: (input: string) => string;
+  }) => string;
+  ```
+</ParamField>
+
+## Code Generation
+
+<ParamField path="preserveComments" type="boolean" default="false">
+  If `true`, your HTML comments will be preserved in the output. By default, they are stripped out.
+  
+  ```js
+  compile(source, { preserveComments: true })
+  ```
+</ParamField>
+
+<ParamField path="preserveWhitespace" type="boolean" default="false">
+  If `true`, whitespace inside and between elements is kept as you typed it, rather than removed or collapsed to a single space where possible.
+  
+  ```js
+  compile(source, { preserveWhitespace: true })
+  ```
+</ParamField>
+
+<ParamField path="fragments" type="'html' | 'tree'" default="'html'" since="5.33">
+  Which strategy to use when cloning DOM fragments:
+  
+  - `'html'`: Populates a `<template>` with `innerHTML` and clones it (faster, but incompatible with strict CSP)
+  - `'tree'`: Creates the fragment one element at a time and then clones it (slower, works everywhere)
+  
+  Use `'tree'` if your Content Security Policy includes [`require-trusted-types-for 'script'`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/require-trusted-types-for).
+  
+  ```js
+  compile(source, { fragments: 'tree' })
+  ```
+</ParamField>
+
+<ParamField path="discloseVersion" type="boolean" default="true">
+  If `true`, exposes the Svelte major version in the browser by adding it to a `Set` stored in `window.__svelte.v`.
+  
+  ```js
+  compile(source, { discloseVersion: false })
+  ```
+</ParamField>
+
+## Sourcemaps
+
+<ParamField path="sourcemap" type="object | string">
+  An initial sourcemap that will be merged into the final output sourcemap. This is usually the preprocessor sourcemap.
+  
+  ```js
+  compile(source, { sourcemap: preprocessResult.map })
+  ```
+</ParamField>
+
+<ParamField path="outputFilename" type="string">
+  Used for your JavaScript sourcemap.
+  
+  ```js
+  compile(source, { outputFilename: 'App.js' })
+  ```
+</ParamField>
+
+<ParamField path="cssOutputFilename" type="string">
+  Used for your CSS sourcemap.
+  
+  ```js
+  compile(source, { cssOutputFilename: 'App.css' })
+  ```
+</ParamField>
+
+## Module Options
+
+<ParamField path="rootDir" type="string" default="process.cwd()">
+  Used for ensuring filenames don't leak filesystem information. Your bundler plugin will set it automatically.
+  
+  ```js
+  compile(source, { rootDir: '/path/to/project' })
+  ```
+</ParamField>
+
+<ParamField path="warningFilter" type="(warning: Warning) => boolean">
+  A function that filters warnings. Return `true` to keep the warning, `false` to discard it.
+  
+  ```js
+  compile(source, {
+    warningFilter: (warning) => {
+      // Ignore a11y warnings
+      return !warning.code.startsWith('a11y-');
+    }
+  })
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="hmr" type="boolean" default="false">
+  If `true`, compiles components with hot reloading support.
+  
+  ```js
+  compile(source, { hmr: true })
+  ```
+</ParamField>
+
+<ParamField path="modernAst" type="boolean" default="false">
+  If `true`, returns the modern version of the AST. Will become `true` by default in Svelte 6, and the option will be removed in Svelte 7.
+  
+  ```js
+  compile(source, { modernAst: true })
+  ```
+</ParamField>
+
+<ParamField path="compatibility" type="object">
+  <Warning>
+    Deprecated - Use only as a temporary solution before migrating your code
+  </Warning>
+  
+  <ParamField path="compatibility.componentApi" type="4 | 5" default="5">
+    Applies a transformation so the default export can be instantiated the same way as in Svelte 4:
+    - As a class when compiling for the browser (like using `createClassComponent()` from `svelte/legacy`)
+    - As an object with a `.render()` method when compiling for the server
+    
+    ```js
+    compile(source, {
+      compatibility: { componentApi: 4 }
+    })
+    ```
+  </ParamField>
+</ParamField>
+
+<ParamField path="experimental" type="object" since="5.36">
+  Experimental compiler features.
+  
+  <ParamField path="experimental.async" type="boolean">
+    Allow `await` keyword in deriveds, template expressions, and the top level of components.
+    
+    ```js
+    compile(source, {
+      experimental: { async: true }
+    })
+    ```
+  </ParamField>
+</ParamField>
+
+## Usage Examples
+
+### Development Build
+
+```js
+import { compile } from 'svelte/compiler';
+
+const result = compile(source, {
+  filename: 'App.svelte',
+  dev: true,
+  generate: 'client',
+  css: 'external',
+  sourcemap: true
+});
+```
+
+### Production Build
+
+```js
+const result = compile(source, {
+  filename: 'App.svelte',
+  dev: false,
+  generate: 'client',
+  css: 'external',
+  discloseVersion: false
+});
+```
+
+### SSR Configuration
+
+```js
+const result = compile(source, {
+  filename: 'App.svelte',
+  generate: 'server',
+  dev: false,
+  css: 'external'
+});
+```
+
+### Custom Element
+
+```js
+const result = compile(source, {
+  filename: 'MyElement.svelte',
+  customElement: true,
+  css: 'injected',
+  accessors: true
+});
+```
+
+### Strict CSP Environment
+
+```js
+const result = compile(source, {
+  filename: 'App.svelte',
+  fragments: 'tree' // Required for strict CSP
+});
+```
+
+### With Vite Plugin
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+  plugins: [
+    svelte({
+      compilerOptions: {
+        dev: process.env.NODE_ENV === 'development',
+        css: 'external',
+        preserveComments: false,
+        runes: undefined // Infer from code
+      }
+    })
+  ]
+});
+```
+
+## Related
+
+- [compile()](/api/compiler/compile) - Main compilation function
+- [preprocess()](/api/compiler/preprocess) - Preprocess before compiling
+- [migrate()](/api/compiler/migrate) - Migrate from Svelte 4 to 5

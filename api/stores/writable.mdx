@@ -1,0 +1,199 @@
+---
+title: writable
+description: Create a writable store that allows both updating and reading by subscription
+---
+
+Create a `Writable` store that allows both updating and reading by subscription.
+
+## Usage
+
+```ts
+import { writable } from 'svelte/store';
+
+const count = writable(0);
+```
+
+## Signature
+
+```ts
+function writable<T>(
+  value?: T,
+  start?: StartStopNotifier<T>
+): Writable<T>
+```
+
+<ParamField path="value" type="T" optional>
+  Initial value of the store.
+</ParamField>
+
+<ParamField path="start" type="StartStopNotifier<T>" optional>
+  A function that is called when the first subscriber subscribes. It receives `set` and `update` functions and optionally returns a cleanup function that is called when the last subscriber unsubscribes.
+
+  ```ts
+  type StartStopNotifier<T> = (
+    set: (value: T) => void,
+    update: (fn: Updater<T>) => void
+  ) => void | (() => void)
+  ```
+</ParamField>
+
+<ResponseField name="Writable<T>" type="object">
+  A writable store object with the following methods:
+
+  <ResponseField name="subscribe" type="(run: Subscriber<T>, invalidate?: () => void) => Unsubscriber">
+    Subscribe to value changes. The `run` callback is called immediately with the current value and then called again whenever the value changes.
+    
+    Returns an unsubscriber function.
+  </ResponseField>
+
+  <ResponseField name="set" type="(value: T) => void">
+    Set the store value and inform all subscribers.
+  </ResponseField>
+
+  <ResponseField name="update" type="(updater: Updater<T>) => void">
+    Update the store value using a callback function that receives the current value and returns the new value. Informs all subscribers.
+    
+    ```ts
+    type Updater<T> = (value: T) => T
+    ```
+  </ResponseField>
+</ResponseField>
+
+## Store Contract
+
+A writable store implements the following contract:
+
+### subscribe
+
+Subscribe to value changes:
+
+```ts
+const unsubscribe = store.subscribe((value) => {
+  console.log('Value changed:', value);
+});
+
+// Later, cleanup
+unsubscribe();
+```
+
+### set
+
+Set the store value directly:
+
+```ts
+count.set(5);
+```
+
+### update
+
+Update the store value using the current value:
+
+```ts
+count.update(n => n + 1);
+```
+
+## Examples
+
+### Basic writable store
+
+```svelte
+<script>
+  import { writable } from 'svelte/store';
+
+  const count = writable(0);
+
+  function increment() {
+    count.update(n => n + 1);
+  }
+
+  function reset() {
+    count.set(0);
+  }
+</script>
+
+<h1>Count: {$count}</h1>
+<button on:click={increment}>+1</button>
+<button on:click={reset}>Reset</button>
+```
+
+### Store with start/stop logic
+
+```ts
+import { writable } from 'svelte/store';
+
+function createTimer() {
+  const { subscribe, set } = writable(0, (set) => {
+    // Called when first subscriber subscribes
+    console.log('Timer started');
+    
+    const interval = setInterval(() => {
+      set(Date.now());
+    }, 1000);
+
+    // Cleanup function called when last subscriber unsubscribes
+    return () => {
+      console.log('Timer stopped');
+      clearInterval(interval);
+    };
+  });
+
+  return { subscribe };
+}
+
+const time = createTimer();
+```
+
+### Auto-subscription with $
+
+In Svelte components, you can use the `$` prefix to automatically subscribe and unsubscribe:
+
+```svelte
+<script>
+  import { writable } from 'svelte/store';
+
+  const name = writable('World');
+</script>
+
+<!-- Automatically subscribes and cleans up -->
+<h1>Hello {$name}!</h1>
+
+<input bind:value={$name} />
+```
+
+This is equivalent to:
+
+```svelte
+<script>
+  import { writable } from 'svelte/store';
+  import { onDestroy } from 'svelte';
+
+  const name = writable('World');
+  let nameValue;
+
+  const unsubscribe = name.subscribe(value => {
+    nameValue = value;
+  });
+
+  onDestroy(unsubscribe);
+</script>
+
+<h1>Hello {nameValue}!</h1>
+```
+
+## TypeScript
+
+```ts
+import { writable, type Writable } from 'svelte/store';
+
+interface User {
+  name: string;
+  age: number;
+}
+
+const user: Writable<User> = writable({
+  name: 'Alice',
+  age: 30
+});
+
+user.update(u => ({ ...u, age: u.age + 1 }));
+```

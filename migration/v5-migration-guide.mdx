@@ -1,0 +1,753 @@
+---
+title: Svelte 4 to 5 Migration Guide
+description: Complete guide for migrating your Svelte 4 application to Svelte 5 with runes, new component model, and breaking changes
+---
+
+Svelte 5 introduces significant improvements to reactivity, component architecture, and developer experience. This guide will help you migrate your Svelte 4 application to Svelte 5.
+
+## Overview of Major Changes
+
+Svelte 5 brings several fundamental changes:
+
+- **Runes**: New reactive primitives replace legacy reactive syntax
+- **Components as functions**: Components are now functions, not classes
+- **Snippets**: Replace slots for content composition
+- **Event handlers**: Use callback props instead of `createEventDispatcher`
+- **Props**: New `$props()` rune replaces `export let`
+
+## Breaking Changes
+
+<Warning>
+The following Svelte 4 patterns are deprecated or removed in Svelte 5:
+
+- `$:` reactive statements (use `$derived` and `$effect`)
+- `export let` for props (use `$props()`)
+- `createEventDispatcher` (use callback props)
+- `<slot>` elements (use snippets)
+- `on:` event directive (use event attributes)
+- Components as class instances (now functions)
+</Warning>
+
+## Migration Strategy
+
+### Incremental Migration
+
+Svelte 5 supports both legacy mode and runes mode, allowing you to migrate incrementally:
+
+1. **Update Svelte**: Install Svelte 5
+2. **Component by component**: Migrate one component at a time
+3. **Test thoroughly**: Ensure functionality remains intact
+4. **Update dependencies**: Check third-party packages for Svelte 5 compatibility
+
+### Automatic Migration
+
+Svelte provides migration tools to help automate the process. Run the migration script on your codebase to get started.
+
+## Reactivity Changes
+
+### From `$:` to Runes
+
+Svelte 4's reactive statements (`$:`) are replaced by `$derived` and `$effect` runes.
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      let count = 0;
+      let doubled;
+      
+      // Reactive assignment
+      $: doubled = count * 2;
+      
+      // Reactive statement
+      $: console.log(`count is ${count}`);
+      
+      // Reactive block
+      $: {
+        if (count > 10) {
+          console.log('Count is high!');
+        }
+      }
+    </script>
+    
+    <button on:click={() => count++}>
+      {count} / {doubled}
+    </button>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script>
+      let count = $state(0);
+      
+      // Derived state
+      let doubled = $derived(count * 2);
+      
+      // Effect for side effects
+      $effect(() => {
+        console.log(`count is ${count}`);
+        
+        if (count > 10) {
+          console.log('Count is high!');
+        }
+      });
+    </script>
+    
+    <button onclick={() => count++}>
+      {count} / {doubled}
+    </button>
+    ```
+  </Tab>
+</Tabs>
+
+### State Management
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      let items = [];
+      let total = 0;
+      
+      $: total = items.reduce((sum, item) => sum + item.price, 0);
+      
+      function addItem(item) {
+        items = [...items, item];
+      }
+    </script>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script>
+      let items = $state([]);
+      let total = $derived(items.reduce((sum, item) => sum + item.price, 0));
+      
+      function addItem(item) {
+        items.push(item); // Direct mutation works with $state
+      }
+    </script>
+    ```
+  </Tab>
+</Tabs>
+
+## Props Changes
+
+### From `export let` to `$props()`
+
+<Warning>
+`export let` is deprecated in runes mode. Use the `$props()` rune instead.
+</Warning>
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Child.svelte -->
+    <script>
+      export let name;
+      export let age = 0;
+      export let email = undefined;
+    </script>
+    
+    <div>
+      <p>{name} ({age})</p>
+      {#if email}
+        <p>{email}</p>
+      {/if}
+    </div>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Child.svelte -->
+    <script>
+      let { name, age = 0, email } = $props();
+    </script>
+    
+    <div>
+      <p>{name} ({age})</p>
+      {#if email}
+        <p>{email}</p>
+      {/if}
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+### Bindable Props
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Counter.svelte -->
+    <script>
+      export let count = 0;
+    </script>
+    
+    <button on:click={() => count++}>
+      {count}
+    </button>
+    
+    <!-- Parent.svelte -->
+    <script>
+      let value = 0;
+    </script>
+    <Counter bind:count={value} />
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Counter.svelte -->
+    <script>
+      let { count = $bindable(0) } = $props();
+    </script>
+    
+    <button onclick={() => count++}>
+      {count}
+    </button>
+    
+    <!-- Parent.svelte -->
+    <script>
+      let value = $state(0);
+    </script>
+    <Counter bind:count={value} />
+    ```
+  </Tab>
+</Tabs>
+
+## Event Handling Changes
+
+### From `createEventDispatcher` to Callbacks
+
+<Warning>
+`createEventDispatcher` is deprecated in Svelte 5. Use callback props instead.
+</Warning>
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Button.svelte -->
+    <script>
+      import { createEventDispatcher } from 'svelte';
+      
+      const dispatch = createEventDispatcher();
+      
+      function handleClick() {
+        dispatch('click', { timestamp: Date.now() });
+      }
+    </script>
+    
+    <button on:click={handleClick}>
+      Click me
+    </button>
+    
+    <!-- Parent.svelte -->
+    <script>
+      function handleButtonClick(event) {
+        console.log('Clicked at:', event.detail.timestamp);
+      }
+    </script>
+    
+    <Button on:click={handleButtonClick} />
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Button.svelte -->
+    <script>
+      let { onclick } = $props();
+      
+      function handleClick() {
+        onclick?.({ timestamp: Date.now() });
+      }
+    </script>
+    
+    <button onclick={handleClick}>
+      Click me
+    </button>
+    
+    <!-- Parent.svelte -->
+    <script>
+      function handleButtonClick(data) {
+        console.log('Clicked at:', data.timestamp);
+      }
+    </script>
+    
+    <Button onclick={handleButtonClick} />
+    ```
+  </Tab>
+</Tabs>
+
+### Event Directives
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      let count = 0;
+    </script>
+    
+    <button on:click={() => count++}>
+      {count}
+    </button>
+    
+    <form on:submit|preventDefault={handleSubmit}>
+      <input type="text" />
+    </form>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script>
+      let count = $state(0);
+      
+      function handleSubmit(e) {
+        e.preventDefault();
+        // handle submit
+      }
+    </script>
+    
+    <button onclick={() => count++}>
+      {count}
+    </button>
+    
+    <form onsubmit={handleSubmit}>
+      <input type="text" />
+    </form>
+    ```
+  </Tab>
+</Tabs>
+
+## Component API Changes
+
+### Components as Functions
+
+<Warning>
+In Svelte 5, components are functions, not class instances. This means:
+- No `new Component()` syntax
+- No `component.$set()` or `component.$on()` methods
+- Use `mount()` and `unmount()` for programmatic rendering
+</Warning>
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```js
+    import Component from './Component.svelte';
+    
+    const component = new Component({
+      target: document.body,
+      props: { name: 'world' }
+    });
+    
+    component.$set({ name: 'Svelte' });
+    component.$on('event', handler);
+    component.$destroy();
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```js
+    import { mount, unmount } from 'svelte';
+    import Component from './Component.svelte';
+    
+    const component = mount(Component, {
+      target: document.body,
+      props: { name: 'world' }
+    });
+    
+    // Props are reactive - just update them
+    component.name = 'Svelte';
+    
+    // Use callback props instead of events
+    unmount(component);
+    ```
+  </Tab>
+</Tabs>
+
+## Slots to Snippets
+
+### Basic Content Projection
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Card.svelte -->
+    <div class="card">
+      <slot />
+    </div>
+    
+    <!-- App.svelte -->
+    <Card>
+      <h1>Hello World</h1>
+    </Card>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Card.svelte -->
+    <script>
+      let { children } = $props();
+    </script>
+    
+    <div class="card">
+      {@render children()}
+    </div>
+    
+    <!-- App.svelte -->
+    <Card>
+      <h1>Hello World</h1>
+    </Card>
+    ```
+  </Tab>
+</Tabs>
+
+### Named Slots
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Modal.svelte -->
+    <div class="modal">
+      <div class="header">
+        <slot name="header" />
+      </div>
+      <div class="body">
+        <slot />
+      </div>
+      <div class="footer">
+        <slot name="footer" />
+      </div>
+    </div>
+    
+    <!-- App.svelte -->
+    <Modal>
+      <h2 slot="header">Title</h2>
+      <p>Content</p>
+      <button slot="footer">Close</button>
+    </Modal>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Modal.svelte -->
+    <script>
+      let { header, children, footer } = $props();
+    </script>
+    
+    <div class="modal">
+      <div class="header">
+        {@render header()}
+      </div>
+      <div class="body">
+        {@render children()}
+      </div>
+      <div class="footer">
+        {@render footer()}
+      </div>
+    </div>
+    
+    <!-- App.svelte -->
+    <Modal>
+      {#snippet header()}
+        <h2>Title</h2>
+      {/snippet}
+      
+      <p>Content</p>
+      
+      {#snippet footer()}
+        <button>Close</button>
+      {/snippet}
+    </Modal>
+    ```
+  </Tab>
+</Tabs>
+
+### Scoped Slots (Render Props)
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- List.svelte -->
+    <script>
+      export let items;
+    </script>
+    
+    <ul>
+      {#each items as item}
+        <li>
+          <slot item={item} />
+        </li>
+      {/each}
+    </ul>
+    
+    <!-- App.svelte -->
+    <List items={users} let:item>
+      <strong>{item.name}</strong>
+    </List>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- List.svelte -->
+    <script>
+      let { items, children } = $props();
+    </script>
+    
+    <ul>
+      {#each items as item}
+        <li>
+          {@render children(item)}
+        </li>
+      {/each}
+    </ul>
+    
+    <!-- App.svelte -->
+    <List items={users}>
+      {#snippet children(item)}
+        <strong>{item.name}</strong>
+      {/snippet}
+    </List>
+    ```
+  </Tab>
+</Tabs>
+
+## Lifecycle Changes
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      import { onMount, onDestroy, beforeUpdate, afterUpdate } from 'svelte';
+      
+      onMount(() => {
+        console.log('Component mounted');
+        
+        return () => {
+          console.log('Cleanup on unmount');
+        };
+      });
+      
+      onDestroy(() => {
+        console.log('Component destroying');
+      });
+      
+      beforeUpdate(() => {
+        console.log('Before update');
+      });
+      
+      afterUpdate(() => {
+        console.log('After update');
+      });
+    </script>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script>
+      import { onMount } from 'svelte';
+      
+      onMount(() => {
+        console.log('Component mounted');
+        
+        return () => {
+          console.log('Cleanup on unmount');
+        };
+      });
+      
+      // Use $effect for update tracking
+      $effect(() => {
+        console.log('Effect runs on mount and when dependencies change');
+        
+        return () => {
+          console.log('Effect cleanup');
+        };
+      });
+    </script>
+    ```
+  </Tab>
+</Tabs>
+
+## Store Changes
+
+Stores continue to work in Svelte 5, but you may want to migrate to runes for better performance:
+
+<Tabs items={['Svelte 4', 'Svelte 5 (Stores)', 'Svelte 5 (Runes)']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      import { writable } from 'svelte/store';
+      
+      const count = writable(0);
+      
+      function increment() {
+        count.update(n => n + 1);
+      }
+    </script>
+    
+    <button on:click={increment}>
+      {$count}
+    </button>
+    ```
+  </Tab>
+  <Tab value="Svelte 5 (Stores)">
+    ```svelte
+    <script>
+      import { writable } from 'svelte/store';
+      
+      const count = writable(0);
+      
+      function increment() {
+        count.update(n => n + 1);
+      }
+    </script>
+    
+    <button onclick={increment}>
+      {$count}
+    </button>
+    ```
+  </Tab>
+  <Tab value="Svelte 5 (Runes)">
+    ```svelte
+    <script>
+      let count = $state(0);
+      
+      function increment() {
+        count++;
+      }
+    </script>
+    
+    <button onclick={increment}>
+      {count}
+    </button>
+    ```
+  </Tab>
+</Tabs>
+
+## TypeScript Changes
+
+Update your TypeScript types for Svelte 5:
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script lang="ts">
+      export let name: string;
+      export let age: number = 0;
+      
+      interface User {
+        id: number;
+        name: string;
+      }
+      
+      let users: User[] = [];
+    </script>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script lang="ts">
+      interface Props {
+        name: string;
+        age?: number;
+      }
+      
+      let { name, age = 0 }: Props = $props();
+      
+      interface User {
+        id: number;
+        name: string;
+      }
+      
+      let users = $state<User[]>([]);
+    </script>
+    ```
+  </Tab>
+</Tabs>
+
+## Common Migration Patterns
+
+### Two-Way Binding
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <script>
+      let text = '';
+    </script>
+    
+    <input bind:value={text} />
+    <p>{text}</p>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <script>
+      let text = $state('');
+    </script>
+    
+    <input bind:value={text} />
+    <p>{text}</p>
+    ```
+  </Tab>
+</Tabs>
+
+### Component Composition
+
+<Tabs items={['Svelte 4', 'Svelte 5']}>
+  <Tab value="Svelte 4">
+    ```svelte
+    <!-- Wrapper.svelte -->
+    <script>
+      export let title;
+    </script>
+    
+    <div class="wrapper">
+      <h1>{title}</h1>
+      <slot />
+    </div>
+    
+    <!-- App.svelte -->
+    <Wrapper title="My App">
+      <p>Content goes here</p>
+    </Wrapper>
+    ```
+  </Tab>
+  <Tab value="Svelte 5">
+    ```svelte
+    <!-- Wrapper.svelte -->
+    <script>
+      let { title, children } = $props();
+    </script>
+    
+    <div class="wrapper">
+      <h1>{title}</h1>
+      {@render children()}
+    </div>
+    
+    <!-- App.svelte -->
+    <Wrapper title="My App">
+      <p>Content goes here</p>
+    </Wrapper>
+    ```
+  </Tab>
+</Tabs>
+
+## Migration Checklist
+
+- [ ] Update to Svelte 5
+- [ ] Replace `$:` with `$derived` and `$effect`
+- [ ] Convert `export let` to `$props()`
+- [ ] Replace `createEventDispatcher` with callback props
+- [ ] Update `on:` directives to event attributes
+- [ ] Convert `<slot>` to snippets and `{@render}`
+- [ ] Update component instantiation (use `mount`)
+- [ ] Update lifecycle hooks (use `$effect` where needed)
+- [ ] Update TypeScript types
+- [ ] Test all components thoroughly
+- [ ] Update documentation
+
+## Next Steps
+
+- Read the [Svelte 5 documentation](https://svelte.dev/docs)
+- Check the [runes documentation](https://svelte.dev/docs/svelte/$state)
+- Review [breaking changes in detail](https://svelte.dev/docs/svelte/v5-migration-guide)
+- Join the [Svelte Discord](https://svelte.dev/chat) for help

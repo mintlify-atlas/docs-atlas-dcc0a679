@@ -1,0 +1,303 @@
+---
+title: Await Blocks
+description: Handle async operations with {#await} blocks in Svelte templates
+---
+
+Await blocks let you branch on the three possible states of a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) - pending, fulfilled, or rejected.
+
+## Full Await Block
+
+Handle all three Promise states:
+
+```svelte
+{#await expression}...{:then name}...{:catch name}...{/await}
+```
+
+### Example
+
+```svelte
+{#await promise}
+  <!-- promise is pending -->
+  <p>waiting for the promise to resolve...</p>
+{:then value}
+  <!-- promise was fulfilled -->
+  <p>The value is {value}</p>
+{:catch error}
+  <!-- promise was rejected -->
+  <p>Something went wrong: {error.message}</p>
+{/await}
+```
+
+## Without Catch Block
+
+Omit error handling if no error is possible or you don't need to show error state:
+
+```svelte
+{#await expression}...{:then name}...{/await}
+```
+
+### Example
+
+```svelte
+{#await promise}
+  <p>loading...</p>
+{:then value}
+  <p>The value is {value}</p>
+{/await}
+```
+
+## Then Only
+
+Skip the pending state when you only care about the result:
+
+```svelte
+{#await expression then name}...{/await}
+```
+
+### Example
+
+```svelte
+{#await promise then value}
+  <p>The value is {value}</p>
+{/await}
+```
+
+## Catch Only
+
+Show only the error state:
+
+```svelte
+{#await expression catch name}...{/await}
+```
+
+### Example
+
+```svelte
+{#await promise catch error}
+  <p>The error is {error}</p>
+{/await}
+```
+
+## Real-World Use Cases
+
+<CardGroup cols={2}>
+  <Card title="API Data Fetching" icon="cloud">
+    ```svelte
+    <script>
+      async function fetchUser(id) {
+        const res = await fetch(`/api/users/${id}`);
+        return res.json();
+      }
+      
+      let userId = $state(1);
+    </script>
+    
+    {#await fetchUser(userId)}
+      <div class="loading">Loading user...</div>
+    {:then user}
+      <div class="user-profile">
+        <h2>{user.name}</h2>
+        <p>{user.email}</p>
+      </div>
+    {:catch error}
+      <div class="error">Failed to load user: {error.message}</div>
+    {/await}
+    ```
+  </Card>
+  
+  <Card title="Lazy Component Loading" icon="box">
+    ```svelte
+    {#await import('./HeavyComponent.svelte') then { default: Component }}
+      <Component />
+    {/await}
+    ```
+  </Card>
+  
+  <Card title="Search Results" icon="search">
+    ```svelte
+    <script>
+      let query = $state('');
+      
+      async function search(q) {
+        if (!q) return [];
+        const res = await fetch(`/api/search?q=${q}`);
+        return res.json();
+      }
+    </script>
+    
+    <input bind:value={query} placeholder="Search..." />
+    
+    {#await search(query)}
+      <p>Searching...</p>
+    {:then results}
+      {#if results.length > 0}
+        {#each results as result}
+          <div class="result">{result.title}</div>
+        {/each}
+      {:else}
+        <p>No results found</p>
+      {/if}
+    {:catch error}
+      <p class="error">Search failed</p>
+    {/await}
+    ```
+  </Card>
+  
+  <Card title="File Upload" icon="upload">
+    ```svelte
+    <script>
+      async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        return res.json();
+      }
+      
+      let uploadPromise = $state(null);
+    </script>
+    
+    <input 
+      type="file" 
+      onchange={(e) => uploadPromise = uploadFile(e.target.files[0])}
+    />
+    
+    {#if uploadPromise}
+      {#await uploadPromise}
+        <progress>Uploading...</progress>
+      {:then result}
+        <p class="success">Upload complete! File ID: {result.id}</p>
+      {:catch error}
+        <p class="error">Upload failed: {error.message}</p>
+      {/await}
+    {/if}
+    ```
+  </Card>
+</CardGroup>
+
+## Server-Side Rendering
+
+<Warning>
+  During server-side rendering, only the pending branch will be rendered. If the expression is not a Promise, only the `:then` branch will be rendered (including during SSR).
+</Warning>
+
+```svelte
+<!-- This will show "loading..." during SSR -->
+{#await fetchData()}
+  <p>loading...</p>
+{:then data}
+  <DataDisplay {data} />
+{/await}
+
+<!-- This will show the data during SSR if it's not a Promise -->
+{#await staticData then data}
+  <DataDisplay {data} />
+{/await}
+```
+
+## Progressive Enhancement Pattern
+
+```svelte
+<script>
+  let data = $state(null);
+  
+  async function loadData() {
+    const res = await fetch('/api/data');
+    return res.json();
+  }
+  
+  // Start loading immediately
+  let dataPromise = loadData();
+</script>
+
+{#await dataPromise}
+  <div class="skeleton">
+    <!-- Skeleton loading UI -->
+    <div class="skeleton-header"></div>
+    <div class="skeleton-body"></div>
+  </div>
+{:then data}
+  <div class="content">
+    <h1>{data.title}</h1>
+    <p>{data.body}</p>
+  </div>
+{:catch error}
+  <div class="error">
+    <p>Failed to load content</p>
+    <button onclick={() => dataPromise = loadData()}>
+      Retry
+    </button>
+  </div>
+{/await}
+```
+
+## Combining with Each Blocks
+
+```svelte
+<script>
+  async function fetchPosts() {
+    const res = await fetch('/api/posts');
+    return res.json();
+  }
+</script>
+
+{#await fetchPosts()}
+  <p>Loading posts...</p>
+{:then posts}
+  {#each posts as post (post.id)}
+    <article>
+      <h2>{post.title}</h2>
+      <p>{post.excerpt}</p>
+    </article>
+  {:else}
+    <p>No posts available</p>
+  {/each}
+{:catch error}
+  <p>Failed to load posts: {error.message}</p>
+{/await}
+```
+
+## Dynamic Promises
+
+The await block re-evaluates when the promise expression changes:
+
+```svelte
+<script>
+  let selectedId = $state(1);
+  
+  async function fetchItem(id) {
+    const res = await fetch(`/api/items/${id}`);
+    return res.json();
+  }
+</script>
+
+<select bind:value={selectedId}>
+  <option value={1}>Item 1</option>
+  <option value={2}>Item 2</option>
+  <option value={3}>Item 3</option>
+</select>
+
+<!-- Re-fetches when selectedId changes -->
+{#await fetchItem(selectedId)}
+  <p>Loading item {selectedId}...</p>
+{:then item}
+  <div class="item-details">
+    <h2>{item.name}</h2>
+    <p>{item.description}</p>
+  </div>
+{:catch error}
+  <p class="error">Failed to load item</p>
+{/await}
+```
+
+## Best Practices
+
+1. **Handle all states** - Always consider pending, success, and error states
+2. **Provide feedback** - Show loading indicators during async operations
+3. **Error recovery** - Offer retry mechanisms for failed requests
+4. **Avoid cascading promises** - Combine related data fetching when possible
+5. **Consider SSR** - Remember that only pending state renders on the server

@@ -1,0 +1,534 @@
+---
+title: Bindings
+description: Create two-way data flow with bind directives in Svelte
+---
+
+Data ordinarily flows down from parent to child. The `bind:` directive allows data to flow back up, creating two-way bindings between components and DOM elements.
+
+## Basic Syntax
+
+```svelte
+<input bind:value={expression} />
+```
+
+When the property name matches the variable name, use shorthand:
+
+```svelte
+<!-- These are equivalent -->
+<input bind:value={value} />
+<input bind:value />
+```
+
+## Input Bindings
+
+### Text Input
+
+Bind the `value` property of text inputs:
+
+```svelte
+<script>
+  let message = $state('hello');
+</script>
+
+<input bind:value={message} />
+<p>{message}</p>
+```
+
+### Numeric Input
+
+Numeric inputs automatically coerce to numbers:
+
+```svelte
+<script>
+  let a = $state(1);
+  let b = $state(2);
+</script>
+
+<label>
+  <input type="number" bind:value={a} min="0" max="10" />
+  <input type="range" bind:value={a} min="0" max="10" />
+</label>
+
+<label>
+  <input type="number" bind:value={b} min="0" max="10" />
+  <input type="range" bind:value={b} min="0" max="10" />
+</label>
+
+<p>{a} + {b} = {a + b}</p>
+```
+
+<Warning>
+  If the input is empty or invalid with `type="number"`, the value is `undefined`.
+</Warning>
+
+### Checkbox Input
+
+Bind checkboxes with `bind:checked`:
+
+```svelte
+<script>
+  let accepted = $state(false);
+</script>
+
+<label>
+  <input type="checkbox" bind:checked={accepted} />
+  Accept terms and conditions
+</label>
+
+{#if accepted}
+  <p>Thank you for accepting!</p>
+{/if}
+```
+
+### Checkbox Indeterminate State
+
+Checkboxes can be in an indeterminate state:
+
+```svelte
+<script>
+  let checked = $state(false);
+  let indeterminate = $state(true);
+</script>
+
+<input type="checkbox" bind:checked bind:indeterminate />
+
+{#if indeterminate}
+  <p>waiting...</p>
+{:else if checked}
+  <p>checked</p>
+{:else}
+  <p>unchecked</p>
+{/if}
+```
+
+## Group Bindings
+
+Group related inputs with `bind:group`:
+
+### Radio Buttons
+
+```svelte
+<script>
+  let tortilla = $state('Plain');
+</script>
+
+<label>
+  <input type="radio" bind:group={tortilla} value="Plain" />
+  Plain
+</label>
+
+<label>
+  <input type="radio" bind:group={tortilla} value="Whole wheat" />
+  Whole wheat
+</label>
+
+<label>
+  <input type="radio" bind:group={tortilla} value="Spinach" />
+  Spinach
+</label>
+
+<p>Selected: {tortilla}</p>
+```
+
+### Checkbox Groups
+
+Checkbox groups populate an array:
+
+```svelte
+<script>
+  let fillings = $state([]);
+</script>
+
+<label>
+  <input type="checkbox" bind:group={fillings} value="Rice" />
+  Rice
+</label>
+
+<label>
+  <input type="checkbox" bind:group={fillings} value="Beans" />
+  Beans
+</label>
+
+<label>
+  <input type="checkbox" bind:group={fillings} value="Cheese" />
+  Cheese
+</label>
+
+<label>
+  <input type="checkbox" bind:group={fillings} value="Guac (extra)" />
+  Guac (extra)
+</label>
+
+<p>Selected fillings: {fillings.join(', ')}</p>
+```
+
+<Warning>
+  `bind:group` only works if the inputs are in the same Svelte component.
+</Warning>
+
+## File Input
+
+Bind file inputs with `bind:files`:
+
+```svelte
+<script>
+  let files = $state();
+  
+  function clear() {
+    files = new DataTransfer().files;
+  }
+</script>
+
+<label for="avatar">Upload a picture:</label>
+<input 
+  accept="image/png, image/jpeg" 
+  bind:files 
+  id="avatar" 
+  name="avatar" 
+  type="file" 
+/>
+
+<button onclick={clear}>Clear</button>
+
+{#if files}
+  <p>Selected: {files.length} file(s)</p>
+{/if}
+```
+
+## Select Bindings
+
+### Single Select
+
+Bind to the `value` of the selected option:
+
+```svelte
+<script>
+  let selected = $state('b');
+  const options = { a: 'Option A', b: 'Option B', c: 'Option C' };
+</script>
+
+<select bind:value={selected}>
+  <option value="a">{options.a}</option>
+  <option value="b">{options.b}</option>
+  <option value="c">{options.c}</option>
+</select>
+
+<p>You selected: {options[selected]}</p>
+```
+
+### Multiple Select
+
+Multiple select populates an array:
+
+```svelte
+<script>
+  let fillings = $state([]);
+</script>
+
+<select multiple bind:value={fillings}>
+  <option value="Rice">Rice</option>
+  <option value="Beans">Beans</option>
+  <option value="Cheese">Cheese</option>
+  <option value="Guac (extra)">Guac (extra)</option>
+</select>
+
+<p>Selected: {fillings.join(', ')}</p>
+```
+
+## Contenteditable Bindings
+
+Bind to contenteditable elements:
+
+```svelte
+<script>
+  let html = $state('<p>Edit <strong>me</strong>!</p>');
+</script>
+
+<div contenteditable="true" bind:innerHTML={html}></div>
+
+<pre>{html}</pre>
+```
+
+Available bindings:
+- `innerHTML`
+- `innerText` 
+- `textContent`
+
+## Media Element Bindings
+
+### Audio/Video Bindings
+
+<CardGroup cols={2}>
+  <Card title="Two-Way Bindings">
+    - `currentTime`
+    - `playbackRate`
+    - `paused`
+    - `volume`
+    - `muted`
+  </Card>
+  
+  <Card title="Readonly Bindings">
+    - `duration`
+    - `buffered`
+    - `seekable`
+    - `seeking`
+    - `ended`
+    - `readyState`
+    - `played`
+  </Card>
+</CardGroup>
+
+```svelte
+<script>
+  let currentTime = $state(0);
+  let paused = $state(true);
+  let duration = $state(0);
+</script>
+
+<audio 
+  src={clip} 
+  bind:currentTime 
+  bind:duration 
+  bind:paused
+></audio>
+
+<button onclick={() => paused = !paused}>
+  {paused ? 'Play' : 'Pause'}
+</button>
+
+<p>{currentTime.toFixed(1)} / {duration.toFixed(1)}</p>
+```
+
+Video elements have all audio bindings plus:
+- `videoWidth` (readonly)
+- `videoHeight` (readonly)
+
+## Image Bindings
+
+Bind to image dimensions (readonly):
+
+```svelte
+<script>
+  let width = $state(0);
+  let height = $state(0);
+</script>
+
+<img 
+  src="/image.jpg"
+  bind:naturalWidth={width}
+  bind:naturalHeight={height}
+  alt="Example"
+/>
+
+<p>Image dimensions: {width} × {height}</p>
+```
+
+## Details Binding
+
+Bind the `open` property of details elements:
+
+```svelte
+<script>
+  let isOpen = $state(false);
+</script>
+
+<details bind:open={isOpen}>
+  <summary>How do you comfort a JavaScript bug?</summary>
+  <p>You console it.</p>
+</details>
+
+<p>Details are {isOpen ? 'open' : 'closed'}</p>
+```
+
+## Dimension Bindings
+
+All visible elements support readonly dimension bindings:
+
+```svelte
+<script>
+  let width = $state(0);
+  let height = $state(0);
+</script>
+
+<div bind:offsetWidth={width} bind:offsetHeight={height}>
+  <Chart {width} {height} />
+</div>
+```
+
+Available dimension bindings:
+- `clientWidth`
+- `clientHeight`
+- `offsetWidth`
+- `offsetHeight`
+- `contentRect`
+- `contentBoxSize`
+- `borderBoxSize`
+- `devicePixelContentBoxSize`
+
+<Warning>
+  Dimension bindings don't work on `display: inline` elements (except elements with intrinsic dimensions like `<img>` and `<canvas>`). Change to `display: inline-block` or another display value.
+</Warning>
+
+## Element Reference Binding
+
+Get a reference to a DOM node with `bind:this`:
+
+```svelte
+<script>
+  let canvas;
+  
+  $effect(() => {
+    const ctx = canvas.getContext('2d');
+    drawStuff(ctx);
+  });
+</script>
+
+<canvas bind:this={canvas}></canvas>
+```
+
+<Warning>
+  The value is `undefined` until the component is mounted. Read it inside effects or event handlers, not during initialization.
+</Warning>
+
+## Component Bindings
+
+Bind to component props using the same syntax:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  let pin = $state('');
+</script>
+
+<Keypad bind:value={pin} />
+
+<p>PIN: {pin}</p>
+```
+
+```svelte
+<!-- Keypad.svelte -->
+<script>
+  let { value = $bindable('') } = $props();
+</script>
+
+<input bind:value />
+```
+
+Mark props as bindable with `$bindable()`:
+
+```svelte
+<script>
+  let { 
+    readonlyProp,
+    bindableProp = $bindable()
+  } = $props();
+</script>
+```
+
+Bindable props can have fallback values:
+
+```svelte
+<script>
+  let { value = $bindable('default') } = $props();
+</script>
+```
+
+## Function Bindings
+
+Use getter/setter functions for validation and transformation:
+
+```svelte
+<script>
+  let value = $state('');
+</script>
+
+<input bind:value={
+  () => value,
+  (v) => value = v.toLowerCase()
+} />
+```
+
+For readonly bindings, set getter to `null`:
+
+```svelte
+<div
+  bind:clientWidth={null, redraw}
+  bind:clientHeight={null, redraw}
+>...</div>
+```
+
+## Form Reset Values
+
+Inputs revert to default values when forms are reset:
+
+```svelte
+<script>
+  let value = $state('');
+</script>
+
+<form>
+  <input bind:value defaultValue="not the empty string" />
+  <input type="reset" value="Reset" />
+</form>
+```
+
+## Real-World Examples
+
+### Search with Filters
+
+```svelte
+<script>
+  let query = $state('');
+  let category = $state('all');
+  let inStock = $state(false);
+  
+  let results = $derived(
+    products
+      .filter(p => p.name.includes(query))
+      .filter(p => category === 'all' || p.category === category)
+      .filter(p => !inStock || p.stock > 0)
+  );
+</script>
+
+<input bind:value={query} placeholder="Search products..." />
+
+<select bind:value={category}>
+  <option value="all">All Categories</option>
+  <option value="electronics">Electronics</option>
+  <option value="books">Books</option>
+</select>
+
+<label>
+  <input type="checkbox" bind:checked={inStock} />
+  In stock only
+</label>
+
+<p>Found {results.length} products</p>
+```
+
+### Volume Control
+
+```svelte
+<script>
+  let volume = $state(0.5);
+  let muted = $state(false);
+</script>
+
+<audio src="song.mp3" bind:volume bind:muted></audio>
+
+<input 
+  type="range" 
+  bind:value={volume} 
+  min="0" 
+  max="1" 
+  step="0.01"
+  disabled={muted}
+/>
+
+<label>
+  <input type="checkbox" bind:checked={muted} />
+  Mute
+</label>
+
+<p>Volume: {Math.round(volume * 100)}%</p>
+```

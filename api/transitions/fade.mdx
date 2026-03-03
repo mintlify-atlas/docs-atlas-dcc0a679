@@ -1,0 +1,47 @@
+---
+title: fade
+description: API reference for the fade transition in Svelte
+---
+
+Animates the opacity of an element from 0 to the current opacity for `in` transitions and from the current opacity to 0 for `out` transitions.
+
+## Usage
+
+```svelte
+<script>
+	import { fade } from 'svelte/transition';
+</script>
+
+<div transition:fade>fades in and out</div>
+
+<div in:fade>fades in</div>
+
+<div out:fade>fades out</div>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number" default="400">
+  Duration of the transition in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="function" default="linear">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { fade } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
+</script>
+
+<div transition:fade={{ duration: 1000, easing: cubicOut }}>
+	fades slowly
+</div>
+```

@@ -1,0 +1,270 @@
+---
+title: $effect
+description: Run side effects in Svelte with the $effect rune
+---
+
+Effects are functions that run when state updates, and can be used for things like calling third-party libraries, drawing on `<canvas>` elements, or making network requests. They only run in the browser, not during server-side rendering.
+
+```svelte
+<script>
+	let size = $state(50);
+	let color = $state('#ff3e00');
+
+	let canvas;
+
+	$effect(() => {
+		const context = canvas.getContext('2d');
+		context.clearRect(0, 0, canvas.width, canvas.height);
+
+		// this will re-run whenever `color` or `size` change
+		context.fillStyle = color;
+		context.fillRect(0, 0, size, size);
+	});
+</script>
+
+<canvas bind:this={canvas} width="100" height="100"></canvas>
+```
+
+## Signature
+
+```ts
+function $effect(fn: () => void | (() => void)): void;
+```
+
+<ParamField path="fn" type="() => void | (() => void)">
+  The effect function to run. Can optionally return a teardown function.
+</ParamField>
+
+When Svelte runs an effect function, it tracks which pieces of state (and derived state) are accessed (unless accessed inside `untrack`), and re-runs the function when that state later changes.
+
+<Warning>
+Generally speaking, you should _not_ update state inside effects, as it will make code more convoluted and will often lead to never-ending update cycles.
+</Warning>
+
+## Understanding lifecycle
+
+Your effects run after the component has been mounted to the DOM, and in a [microtask](https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide) after state changes. Re-runs are batched (i.e. changing `color` and `size` in the same moment won't cause two separate runs), and happen after any DOM updates have been applied.
+
+You can use `$effect` anywhere, not just at the top level of a component, as long as it is called while a parent effect is running.
+
+<Note>
+Svelte uses effects internally to represent logic and expressions in your template — this is how `<h1>hello {name}!</h1>` updates when `name` changes.
+</Note>
+
+## Teardown functions
+
+An effect can return a _teardown function_ which will run immediately before the effect re-runs:
+
+```svelte
+<script>
+	let count = $state(0);
+	let milliseconds = $state(1000);
+
+	$effect(() => {
+		// This will be recreated whenever `milliseconds` changes
+		const interval = setInterval(() => {
+			count += 1;
+		}, milliseconds);
+
+		return () => {
+			// if a teardown function is provided, it will run
+			// a) immediately before the effect re-runs
+			// b) when the component is destroyed
+			clearInterval(interval);
+		};
+	});
+</script>
+
+<h1>{count}</h1>
+
+<button onclick={() => (milliseconds *= 2)}>slower</button>
+<button onclick={() => (milliseconds /= 2)}>faster</button>
+```
+
+Teardown functions also run when the effect is destroyed, which happens when its parent is destroyed (for example, a component is unmounted) or the parent effect re-runs.
+
+## Understanding dependencies
+
+`$effect` automatically picks up any reactive values (`$state`, `$derived`, `$props`) that are _synchronously_ read inside its function body (including indirectly, via function calls) and registers them as dependencies. When those dependencies change, the `$effect` schedules a re-run.
+
+<Warning>
+If `$state` and `$derived` are used directly inside the `$effect` (for example, during creation of a reactive class), those values will _not_ be treated as dependencies.
+</Warning>
+
+Values that are read _asynchronously_ — after an `await` or inside a `setTimeout`, for example — will not be tracked:
+
+```ts
+$effect(() => {
+	const context = canvas.getContext('2d');
+	context.clearRect(0, 0, canvas.width, canvas.height);
+
+	// this will re-run whenever `color` changes...
+	context.fillStyle = color;
+
+	setTimeout(() => {
+		// ...but not when `size` changes
+		context.fillRect(0, 0, size, size);
+	}, 0);
+});
+```
+
+An effect only reruns when the object it reads changes, not when a property inside it changes:
+
+```svelte
+<script>
+	let state = $state({ value: 0 });
+	let derived = $derived({ value: state.value * 2 });
+
+	// this will run once, because `state` is never reassigned (only mutated)
+	$effect(() => {
+		state;
+	});
+
+	// this will run whenever `state.value` changes...
+	$effect(() => {
+		state.value;
+	});
+
+	// ...and so will this, because `derived` is a new object each time
+	$effect(() => {
+		derived;
+	});
+</script>
+```
+
+## $effect.pre
+
+```ts
+function pre(fn: () => void | (() => void)): void;
+```
+
+In rare cases, you may need to run code _before_ the DOM updates. For this we can use the `$effect.pre` rune:
+
+```svelte
+<script>
+	import { tick } from 'svelte';
+
+	let div = $state();
+	let messages = $state([]);
+
+	// ...
+
+	$effect.pre(() => {
+		if (!div) return; // not yet mounted
+
+		// reference `messages` array length so that this code re-runs whenever it changes
+		messages.length;
+
+		// autoscroll when new messages are added
+		if (div.offsetHeight + div.scrollTop > div.scrollHeight - 20) {
+			tick().then(() => {
+				div.scrollTo(0, div.scrollHeight);
+			});
+		}
+	});
+</script>
+
+<div bind:this={div}>
+	{#each messages as message}
+		<p>{message}</p>
+	{/each}
+</div>
+```
+
+Apart from the timing, `$effect.pre` works exactly like `$effect`.
+
+## $effect.tracking
+
+```ts
+function tracking(): boolean;
+```
+
+The `$effect.tracking` rune is an advanced feature that tells you whether or not the code is running inside a tracking context, such as an effect or inside your template:
+
+```svelte
+<script>
+	console.log('in component setup:', $effect.tracking()); // false
+
+	$effect(() => {
+		console.log('in effect:', $effect.tracking()); // true
+	});
+</script>
+
+<p>in template: {$effect.tracking()}</p> <!-- true -->
+```
+
+It is used to implement abstractions like `createSubscriber`, which will create listeners to update reactive values but _only_ if those values are being tracked.
+
+## $effect.pending
+
+```ts
+function pending(): number;
+```
+
+When using `await` in components, the `$effect.pending()` rune tells you how many promises are pending in the current boundary, not including child boundaries:
+
+```svelte
+<button onclick={() => a++}>a++</button>
+<button onclick={() => b++}>b++</button>
+
+<p>{a} + {b} = {await add(a, b)}</p>
+
+{#if $effect.pending()}
+	<p>pending promises: {$effect.pending()}</p>
+{/if}
+```
+
+## $effect.root
+
+```ts
+function root(fn: () => void | (() => void)): () => void;
+```
+
+The `$effect.root` rune is an advanced feature that creates a non-tracked scope that doesn't auto-cleanup. This is useful for nested effects that you want to manually control:
+
+```js
+const destroy = $effect.root(() => {
+	$effect(() => {
+		// setup
+	});
+
+	return () => {
+		// cleanup
+	};
+});
+
+// later...
+destroy();
+```
+
+## When not to use $effect
+
+In general, `$effect` is best considered something of an escape hatch — useful for things like analytics and direct DOM manipulation — rather than a tool you should use frequently. In particular, avoid using it to synchronise state.
+
+<Tabs>
+  <Tab title="Don't do this">
+    ```svelte
+    <script>
+    	let count = $state(0);
+    	let doubled = $state();
+
+    	// don't do this!
+    	$effect(() => {
+    		doubled = count * 2;
+    	});
+    </script>
+    ```
+  </Tab>
+  <Tab title="Do this instead">
+    ```svelte
+    <script>
+    	let count = $state(0);
+    	let doubled = $derived(count * 2);
+    </script>
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+For things that are more complicated than a simple expression like `count * 2`, you can also use `$derived.by`.
+</Note>

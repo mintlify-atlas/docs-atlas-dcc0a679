@@ -1,0 +1,1017 @@
+---
+title: React to Svelte Migration Guide
+description: Comprehensive guide for migrating from React to Svelte, including concept mapping, syntax comparison, and migration strategies
+---
+
+Migrating from React to Svelte offers significant benefits: smaller bundle sizes, better performance, and less boilerplate. This guide will help you understand the differences and successfully migrate your React applications to Svelte.
+
+## Why Migrate to Svelte?
+
+- **No Virtual DOM**: Svelte compiles to efficient vanilla JavaScript
+- **Less Boilerplate**: Write less code to achieve the same functionality
+- **Built-in Reactivity**: No need for hooks or state management libraries
+- **Smaller Bundles**: Significantly smaller production builds
+- **Better Performance**: Faster runtime performance out of the box
+
+## Key Concept Mapping
+
+| React Concept | Svelte Equivalent | Notes |
+|---------------|-------------------|-------|
+| JSX | Svelte Templates | No JSX transform needed |
+| `useState` | `$state` | Built-in reactivity |
+| `useEffect` | `$effect` | Simpler dependency tracking |
+| `useMemo` | `$derived` | Automatic memoization |
+| `useCallback` | Regular functions | No need to memoize |
+| `useRef` | `let` + `bind:this` | Simpler binding syntax |
+| `useContext` | Context API | Similar, but simpler |
+| `useReducer` | `$state` + functions | State management built-in |
+| Props | `$props()` | Destructured props |
+| Children | `children` prop | Rendered with `{@render}` |
+| Custom Hooks | Runes | More powerful primitives |
+
+## Component Basics
+
+### Component Definition
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import React from 'react';
+    
+    function Welcome({ name }) {
+      return (
+        <div>
+          <h1>Hello, {name}!</h1>
+        </div>
+      );
+    }
+    
+    export default Welcome;
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { name } = $props();
+    </script>
+    
+    <div>
+      <h1>Hello, {name}!</h1>
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+### State Management
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useState } from 'react';
+    
+    function Counter() {
+      const [count, setCount] = useState(0);
+      
+      return (
+        <button onClick={() => setCount(count + 1)}>
+          Count: {count}
+        </button>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let count = $state(0);
+    </script>
+    
+    <button onclick={() => count++}>
+      Count: {count}
+    </button>
+    ```
+  </Tab>
+</Tabs>
+
+### Computed Values
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useState, useMemo } from 'react';
+    
+    function ShoppingCart({ items }) {
+      const total = useMemo(() => {
+        return items.reduce((sum, item) => sum + item.price, 0);
+      }, [items]);
+      
+      return <div>Total: ${total}</div>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { items } = $props();
+      
+      let total = $derived(
+        items.reduce((sum, item) => sum + item.price, 0)
+      );
+    </script>
+    
+    <div>Total: ${total}</div>
+    ```
+  </Tab>
+</Tabs>
+
+## Effects and Side Effects
+
+### Basic Effects
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useEffect, useState } from 'react';
+    
+    function Timer() {
+      const [seconds, setSeconds] = useState(0);
+      
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setSeconds(s => s + 1);
+        }, 1000);
+        
+        return () => clearInterval(interval);
+      }, []);
+      
+      return <div>Seconds: {seconds}</div>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let seconds = $state(0);
+      
+      $effect(() => {
+        const interval = setInterval(() => {
+          seconds++;
+        }, 1000);
+        
+        return () => clearInterval(interval);
+      });
+    </script>
+    
+    <div>Seconds: {seconds}</div>
+    ```
+  </Tab>
+</Tabs>
+
+### Watching Dependencies
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useEffect, useState } from 'react';
+    
+    function UserProfile({ userId }) {
+      const [user, setUser] = useState(null);
+      
+      useEffect(() => {
+        fetch(`/api/users/${userId}`)
+          .then(r => r.json())
+          .then(setUser);
+      }, [userId]);
+      
+      return <div>{user?.name}</div>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { userId } = $props();
+      let user = $state(null);
+      
+      $effect(() => {
+        fetch(`/api/users/${userId}`)
+          .then(r => r.json())
+          .then(data => user = data);
+      });
+    </script>
+    
+    <div>{user?.name}</div>
+    ```
+  </Tab>
+</Tabs>
+
+## Props and Component Communication
+
+### Props Passing
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    // Parent
+    function App() {
+      return (
+        <UserCard 
+          name="Alice"
+          age={30}
+          email="alice@example.com"
+        />
+      );
+    }
+    
+    // Child
+    function UserCard({ name, age, email }) {
+      return (
+        <div>
+          <h2>{name}</h2>
+          <p>Age: {age}</p>
+          <p>Email: {email}</p>
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- Parent.svelte -->
+    <UserCard 
+      name="Alice"
+      age={30}
+      email="alice@example.com"
+    />
+    
+    <!-- UserCard.svelte -->
+    <script>
+      let { name, age, email } = $props();
+    </script>
+    
+    <div>
+      <h2>{name}</h2>
+      <p>Age: {age}</p>
+      <p>Email: {email}</p>
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+### Default Props
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function Button({ text = 'Click me', variant = 'primary' }) {
+      return <button className={variant}>{text}</button>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { text = 'Click me', variant = 'primary' } = $props();
+    </script>
+    
+    <button class={variant}>{text}</button>
+    ```
+  </Tab>
+</Tabs>
+
+### Two-Way Binding
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    // Parent
+    function App() {
+      const [value, setValue] = useState('');
+      
+      return <Input value={value} onChange={setValue} />;
+    }
+    
+    // Child
+    function Input({ value, onChange }) {
+      return (
+        <input 
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- Parent.svelte -->
+    <script>
+      let value = $state('');
+    </script>
+    
+    <Input bind:value />
+    
+    <!-- Input.svelte -->
+    <script>
+      let { value = $bindable() } = $props();
+    </script>
+    
+    <input bind:value />
+    ```
+  </Tab>
+</Tabs>
+
+### Callbacks and Events
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    // Parent
+    function App() {
+      const handleClick = (data) => {
+        console.log('Clicked:', data);
+      };
+      
+      return <CustomButton onClick={handleClick} />;
+    }
+    
+    // Child
+    function CustomButton({ onClick }) {
+      return (
+        <button onClick={() => onClick({ id: 1 })}>
+          Click me
+        </button>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- Parent.svelte -->
+    <script>
+      function handleClick(data) {
+        console.log('Clicked:', data);
+      }
+    </script>
+    
+    <CustomButton onclick={handleClick} />
+    
+    <!-- CustomButton.svelte -->
+    <script>
+      let { onclick } = $props();
+    </script>
+    
+    <button onclick={() => onclick?.({ id: 1 })}>
+      Click me
+    </button>
+    ```
+  </Tab>
+</Tabs>
+
+## Rendering Patterns
+
+### Conditional Rendering
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function UserStatus({ isLoggedIn, user }) {
+      if (isLoggedIn) {
+        return <div>Welcome, {user.name}!</div>;
+      } else {
+        return <div>Please log in</div>;
+      }
+    }
+    
+    // Or with ternary
+    function UserStatus({ isLoggedIn, user }) {
+      return (
+        <div>
+          {isLoggedIn ? (
+            <div>Welcome, {user.name}!</div>
+          ) : (
+            <div>Please log in</div>
+          )}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { isLoggedIn, user } = $props();
+    </script>
+    
+    {#if isLoggedIn}
+      <div>Welcome, {user.name}!</div>
+    {:else}
+      <div>Please log in</div>
+    {/if}
+    ```
+  </Tab>
+</Tabs>
+
+### List Rendering
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function TodoList({ todos }) {
+      return (
+        <ul>
+          {todos.map(todo => (
+            <li key={todo.id}>
+              {todo.text}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { todos } = $props();
+    </script>
+    
+    <ul>
+      {#each todos as todo (todo.id)}
+        <li>{todo.text}</li>
+      {/each}
+    </ul>
+    ```
+  </Tab>
+</Tabs>
+
+### Children and Composition
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    // Container component
+    function Card({ children, title }) {
+      return (
+        <div className="card">
+          <h2>{title}</h2>
+          {children}
+        </div>
+      );
+    }
+    
+    // Usage
+    function App() {
+      return (
+        <Card title="My Card">
+          <p>Card content goes here</p>
+        </Card>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- Card.svelte -->
+    <script>
+      let { children, title } = $props();
+    </script>
+    
+    <div class="card">
+      <h2>{title}</h2>
+      {@render children()}
+    </div>
+    
+    <!-- App.svelte -->
+    <Card title="My Card">
+      <p>Card content goes here</p>
+    </Card>
+    ```
+  </Tab>
+</Tabs>
+
+## Forms and Input Handling
+
+### Controlled Inputs
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function Form() {
+      const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        message: ''
+      });
+      
+      const handleChange = (field) => (e) => {
+        setFormData(prev => ({
+          ...prev,
+          [field]: e.target.value
+        }));
+      };
+      
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        console.log(formData);
+      };
+      
+      return (
+        <form onSubmit={handleSubmit}>
+          <input 
+            value={formData.name}
+            onChange={handleChange('name')}
+          />
+          <input 
+            value={formData.email}
+            onChange={handleChange('email')}
+          />
+          <textarea 
+            value={formData.message}
+            onChange={handleChange('message')}
+          />
+          <button type="submit">Submit</button>
+        </form>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let formData = $state({
+        name: '',
+        email: '',
+        message: ''
+      });
+      
+      function handleSubmit(e) {
+        e.preventDefault();
+        console.log(formData);
+      }
+    </script>
+    
+    <form onsubmit={handleSubmit}>
+      <input bind:value={formData.name} />
+      <input bind:value={formData.email} />
+      <textarea bind:value={formData.message} />
+      <button type="submit">Submit</button>
+    </form>
+    ```
+  </Tab>
+</Tabs>
+
+## Lifecycle and Refs
+
+### Component Lifecycle
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useEffect } from 'react';
+    
+    function Component() {
+      useEffect(() => {
+        console.log('Component mounted');
+        
+        return () => {
+          console.log('Component unmounting');
+        };
+      }, []);
+      
+      return <div>Component</div>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      import { onMount } from 'svelte';
+      
+      onMount(() => {
+        console.log('Component mounted');
+        
+        return () => {
+          console.log('Component unmounting');
+        };
+      });
+    </script>
+    
+    <div>Component</div>
+    ```
+  </Tab>
+</Tabs>
+
+### DOM Refs
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useRef, useEffect } from 'react';
+    
+    function AutoFocusInput() {
+      const inputRef = useRef(null);
+      
+      useEffect(() => {
+        inputRef.current?.focus();
+      }, []);
+      
+      return <input ref={inputRef} />;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      import { onMount } from 'svelte';
+      
+      let inputElement;
+      
+      onMount(() => {
+        inputElement?.focus();
+      });
+    </script>
+    
+    <input bind:this={inputElement} />
+    ```
+  </Tab>
+</Tabs>
+
+## Context API
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { createContext, useContext } from 'react';
+    
+    const ThemeContext = createContext('light');
+    
+    function App() {
+      return (
+        <ThemeContext.Provider value="dark">
+          <ThemedComponent />
+        </ThemeContext.Provider>
+      );
+    }
+    
+    function ThemedComponent() {
+      const theme = useContext(ThemeContext);
+      return <div>Theme: {theme}</div>;
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- App.svelte -->
+    <script>
+      import { setContext } from 'svelte';
+      import ThemedComponent from './ThemedComponent.svelte';
+      
+      setContext('theme', 'dark');
+    </script>
+    
+    <ThemedComponent />
+    
+    <!-- ThemedComponent.svelte -->
+    <script>
+      import { getContext } from 'svelte';
+      
+      const theme = getContext('theme');
+    </script>
+    
+    <div>Theme: {theme}</div>
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Patterns
+
+### Higher-Order Components vs Composition
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    // HOC pattern
+    function withAuth(Component) {
+      return function AuthenticatedComponent(props) {
+        const { isAuthenticated } = useAuth();
+        
+        if (!isAuthenticated) {
+          return <Login />;
+        }
+        
+        return <Component {...props} />;
+      };
+    }
+    
+    const ProtectedPage = withAuth(Dashboard);
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- AuthGuard.svelte -->
+    <script>
+      import { getContext } from 'svelte';
+      import Login from './Login.svelte';
+      
+      let { children } = $props();
+      const isAuthenticated = getContext('auth');
+    </script>
+    
+    {#if isAuthenticated}
+      {@render children()}
+    {:else}
+      <Login />
+    {/if}
+    
+    <!-- Usage -->
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
+    ```
+  </Tab>
+</Tabs>
+
+### Render Props Pattern
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function DataFetcher({ url, render }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      
+      useEffect(() => {
+        fetch(url)
+          .then(r => r.json())
+          .then(data => {
+            setData(data);
+            setLoading(false);
+          });
+      }, [url]);
+      
+      return render({ data, loading });
+    }
+    
+    // Usage
+    <DataFetcher 
+      url="/api/users"
+      render={({ data, loading }) => (
+        loading ? <div>Loading...</div> : <div>{data}</div>
+      )}
+    />
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <!-- DataFetcher.svelte -->
+    <script>
+      let { url, children } = $props();
+      let data = $state(null);
+      let loading = $state(true);
+      
+      $effect(() => {
+        loading = true;
+        fetch(url)
+          .then(r => r.json())
+          .then(result => {
+            data = result;
+            loading = false;
+          });
+      });
+    </script>
+    
+    {@render children({ data, loading })}
+    
+    <!-- Usage -->
+    <DataFetcher url="/api/users">
+      {#snippet children({ data, loading })}
+        {#if loading}
+          <div>Loading...</div>
+        {:else}
+          <div>{data}</div>
+        {/if}
+      {/snippet}
+    </DataFetcher>
+    ```
+  </Tab>
+</Tabs>
+
+## State Management
+
+### Local State
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    import { useState } from 'react';
+    
+    function ShoppingCart() {
+      const [items, setItems] = useState([]);
+      
+      const addItem = (item) => {
+        setItems(prev => [...prev, item]);
+      };
+      
+      const removeItem = (id) => {
+        setItems(prev => prev.filter(item => item.id !== id));
+      };
+      
+      return (
+        <div>
+          {items.map(item => (
+            <div key={item.id}>
+              {item.name}
+              <button onClick={() => removeItem(item.id)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let items = $state([]);
+      
+      function addItem(item) {
+        items.push(item); // Direct mutation works!
+      }
+      
+      function removeItem(id) {
+        items = items.filter(item => item.id !== id);
+      }
+    </script>
+    
+    <div>
+      {#each items as item (item.id)}
+        <div>
+          {item.name}
+          <button onclick={() => removeItem(item.id)}>Remove</button>
+        </div>
+      {/each}
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+### Global State (Without External Libraries)
+
+<Tabs items={['React (Context)', 'Svelte (Stores)']}>
+  <Tab value="React (Context)">
+    ```jsx
+    import { createContext, useContext, useState } from 'react';
+    
+    const CartContext = createContext();
+    
+    export function CartProvider({ children }) {
+      const [cart, setCart] = useState([]);
+      
+      const addToCart = (item) => {
+        setCart(prev => [...prev, item]);
+      };
+      
+      return (
+        <CartContext.Provider value={{ cart, addToCart }}>
+          {children}
+        </CartContext.Provider>
+      );
+    }
+    
+    export function useCart() {
+      return useContext(CartContext);
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte (Stores)">
+    ```js
+    // stores.js
+    import { writable } from 'svelte/store';
+    
+    function createCart() {
+      const { subscribe, update } = writable([]);
+      
+      return {
+        subscribe,
+        addToCart: (item) => update(items => [...items, item])
+      };
+    }
+    
+    export const cart = createCart();
+    
+    // Component.svelte
+    <script>
+      import { cart } from './stores.js';
+    </script>
+    
+    <div>Items: {$cart.length}</div>
+    <button onclick={() => cart.addToCart({ id: 1 })}>Add</button>
+    ```
+  </Tab>
+</Tabs>
+
+## Styling
+
+### Component Styles
+
+<Tabs items={['React (CSS Modules)', 'Svelte']}>
+  <Tab value="React (CSS Modules)">
+    ```jsx
+    import styles from './Button.module.css';
+    
+    function Button({ children }) {
+      return (
+        <button className={styles.button}>
+          {children}
+        </button>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { children } = $props();
+    </script>
+    
+    <button>
+      {@render children()}
+    </button>
+    
+    <style>
+      button {
+        /* Scoped to this component by default */
+        padding: 10px 20px;
+        background: blue;
+        color: white;
+      }
+    </style>
+    ```
+  </Tab>
+</Tabs>
+
+### Dynamic Styles
+
+<Tabs items={['React', 'Svelte']}>
+  <Tab value="React">
+    ```jsx
+    function Box({ color, size }) {
+      return (
+        <div style={{
+          backgroundColor: color,
+          width: `${size}px`,
+          height: `${size}px`
+        }}>
+          Box
+        </div>
+      );
+    }
+    ```
+  </Tab>
+  <Tab value="Svelte">
+    ```svelte
+    <script>
+      let { color, size } = $props();
+    </script>
+    
+    <div style:background-color={color} style:width="{size}px" style:height="{size}px">
+      Box
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+## Migration Checklist
+
+- [ ] Understand Svelte's reactivity model (no Virtual DOM)
+- [ ] Convert React components to Svelte components
+- [ ] Replace `useState` with `$state`
+- [ ] Replace `useEffect` with `$effect`
+- [ ] Replace `useMemo` with `$derived`
+- [ ] Remove `useCallback` (not needed)
+- [ ] Convert `useRef` to `bind:this`
+- [ ] Update event handlers (`onClick` → `onclick`)
+- [ ] Replace Context API with Svelte context or stores
+- [ ] Convert JSX to Svelte templates
+- [ ] Update conditional rendering (`{condition && <div>}` → `{#if condition}`)
+- [ ] Update list rendering (`.map()` → `{#each}`)
+- [ ] Replace CSS-in-JS/CSS Modules with scoped styles
+- [ ] Update form handling (use `bind:value`)
+- [ ] Test all functionality thoroughly
+
+## Key Differences to Remember
+
+1. **No Virtual DOM**: Svelte compiles to vanilla JavaScript
+2. **Built-in Reactivity**: No need for `setState` or hooks
+3. **Scoped Styles**: CSS is scoped by default
+4. **Less Boilerplate**: Write less code for the same functionality
+5. **True Reactivity**: Assignments trigger updates automatically
+6. **No Re-renders**: Only changed parts of the DOM update
+
+## Next Steps
+
+- Read the [Svelte Tutorial](https://svelte.dev/tutorial)
+- Explore [Svelte Examples](https://svelte.dev/examples)
+- Check out [SvelteKit](https://kit.svelte.dev) for full-stack applications
+- Join the [Svelte Discord](https://svelte.dev/chat)

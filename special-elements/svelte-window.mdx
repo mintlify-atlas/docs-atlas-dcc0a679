@@ -1,0 +1,158 @@
+---
+title: '<svelte:window>'
+description: 'Add event listeners and bindings to the window object'
+---
+
+```svelte
+<svelte:window onevent={handler} />
+```
+
+```svelte
+<svelte:window bind:prop={value} />
+```
+
+The `<svelte:window>` element allows you to add event listeners to the `window` object without worrying about removing them when the component is destroyed, or checking for the existence of `window` when server-side rendering.
+
+<Note>
+This element may only appear at the top level of your component — it cannot be inside a block or element.
+</Note>
+
+## Event Listeners
+
+You can add any valid window event listener using the `on` directive:
+
+```svelte
+<script>
+  function handleKeydown(event) {
+    alert(`pressed the ${event.key} key`);
+  }
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+```
+
+### Common window events
+
+- `onresize` - Window is resized
+- `onscroll` - Window is scrolled
+- `onfocus` - Window gains focus
+- `onblur` - Window loses focus
+- `onkeydown` - Key is pressed
+- `onkeyup` - Key is released
+- `onmousemove` - Mouse moves
+- `onbeforeunload` - Before window unloads
+
+## Bindings
+
+You can bind to the following window properties:
+
+<ParamField path="innerWidth" type="number" readonly>
+  The inner width of the window in pixels.
+</ParamField>
+
+<ParamField path="innerHeight" type="number" readonly>
+  The inner height of the window in pixels.
+</ParamField>
+
+<ParamField path="outerWidth" type="number" readonly>
+  The outer width of the window in pixels.
+</ParamField>
+
+<ParamField path="outerHeight" type="number" readonly>
+  The outer height of the window in pixels.
+</ParamField>
+
+<ParamField path="scrollX" type="number">
+  The horizontal scroll position in pixels. Can be set to scroll the window.
+</ParamField>
+
+<ParamField path="scrollY" type="number">
+  The vertical scroll position in pixels. Can be set to scroll the window.
+</ParamField>
+
+<ParamField path="online" type="boolean" readonly>
+  Whether the browser is online. An alias for `window.navigator.onLine`.
+</ParamField>
+
+<ParamField path="devicePixelRatio" type="number" readonly>
+  The ratio of physical pixels to CSS pixels for the current display.
+</ParamField>
+
+## Usage
+
+### Track window dimensions
+
+```svelte
+<script>
+  let width = $state(0);
+  let height = $state(0);
+</script>
+
+<svelte:window bind:innerWidth={width} bind:innerHeight={height} />
+
+<p>Window size: {width} x {height}</p>
+```
+
+### Scroll control
+
+```svelte
+<script>
+  let y = $state(0);
+</script>
+
+<svelte:window bind:scrollY={y} />
+
+<p>Scroll position: {y}</p>
+
+<button onclick={() => y = 0}>
+  Scroll to top
+</button>
+```
+
+<Note>
+The page will not be scrolled to the initial value to avoid accessibility issues. Only subsequent changes to the bound variable of `scrollX` and `scrollY` will cause scrolling. 
+
+If you have a legitimate reason to scroll when the component is rendered, call `scrollTo()` in an `$effect`.
+</Note>
+
+### Track online status
+
+```svelte
+<script>
+  let online = $state(true);
+</script>
+
+<svelte:window bind:online />
+
+{#if !online}
+  <div class="offline-warning">
+    You are currently offline
+  </div>
+{/if}
+```
+
+### Multiple bindings and events
+
+```svelte
+<script>
+  let scrollY = $state(0);
+  let innerHeight = $state(0);
+  
+  function handleKeydown(event) {
+    if (event.key === 'Escape') {
+      console.log('Escape pressed');
+    }
+  }
+  
+  function handleResize() {
+    console.log('Window resized');
+  }
+</script>
+
+<svelte:window 
+  bind:scrollY
+  bind:innerHeight
+  onkeydown={handleKeydown}
+  onresize={handleResize}
+/>
+```

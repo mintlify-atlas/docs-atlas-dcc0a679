@@ -1,0 +1,290 @@
+---
+title: createEventDispatcher
+description: Create a typed event dispatcher for component events (legacy)
+---
+
+<Warning>
+  **Deprecated**: Use callback props and/or the `$host()` rune instead. See the [migration guide](https://svelte.dev/docs/svelte/v5-migration-guide#Event-changes-Component-events) for details.
+</Warning>
+
+Creates an event dispatcher that can be used to dispatch component events. Event dispatchers create [CustomEvent](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent) instances that do not bubble.
+
+## Signature
+
+```ts
+function createEventDispatcher<
+  EventMap extends Record<string, any> = any
+>(): EventDispatcher<EventMap>
+```
+
+<ResponseField name="return" type="EventDispatcher<EventMap>">
+  An event dispatcher function
+</ResponseField>
+
+### EventDispatcher
+
+```ts
+interface EventDispatcher<EventMap extends Record<string, any>> {
+  <Type extends keyof EventMap>(
+    ...args: null extends EventMap[Type]
+      ? [type: Type, parameter?: EventMap[Type] | null | undefined, options?: DispatchOptions]
+      : undefined extends EventMap[Type]
+        ? [type: Type, parameter?: EventMap[Type] | null | undefined, options?: DispatchOptions]
+        : [type: Type, parameter: EventMap[Type], options?: DispatchOptions]
+  ): boolean;
+}
+```
+
+<ParamField path="type" type="string" required>
+  The event name
+</ParamField>
+
+<ParamField path="detail" type="any">
+  The event detail data. Type depends on the event type in the `EventMap`
+</ParamField>
+
+<ParamField path="options" type="DispatchOptions">
+  Event options
+
+  <ParamField path="options.cancelable" type="boolean" default="false">
+    Whether the event can be cancelled with `event.preventDefault()`
+  </ParamField>
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  Returns `false` if the event was cancelled with `preventDefault()`, otherwise `true`
+</ResponseField>
+
+## Usage
+
+### Basic Event Dispatch
+
+Create and dispatch simple events:
+
+```svelte
+<!-- ChildComponent.svelte -->
+<script>
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function handleClick() {
+    dispatch('message', { text: 'Hello!' });
+  }
+</script>
+
+<button onclick={handleClick}>
+  Send message
+</button>
+```
+
+```svelte
+<!-- ParentComponent.svelte -->
+<script>
+  import ChildComponent from './ChildComponent.svelte';
+
+  function handleMessage(event) {
+    console.log(event.detail.text); // 'Hello!'
+  }
+</script>
+
+<ChildComponent on:message={handleMessage} />
+```
+
+### Typed Event Dispatcher
+
+Type your events for better IDE support and type safety:
+
+```ts
+// ChildComponent.svelte
+import { createEventDispatcher } from 'svelte';
+
+const dispatch = createEventDispatcher<{
+  loaded: null;              // no detail argument
+  change: string;            // detail argument of type string (required)
+  optional: number | null;   // optional detail argument
+  submit: { name: string; email: string }; // object detail
+}>();
+
+// TypeScript enforces correct usage:
+dispatch('loaded');                    // ✓ OK
+dispatch('change', 'new value');       // ✓ OK
+dispatch('change');                    // ✗ Error: missing required detail
+dispatch('optional', 42);              // ✓ OK
+dispatch('optional');                  // ✓ OK
+dispatch('submit', { name: 'John', email: 'john@example.com' }); // ✓ OK
+```
+
+### Cancelable Events
+
+Create events that can be cancelled:
+
+```svelte
+<script>
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function handleSubmit() {
+    // Dispatch cancelable event
+    const cancelled = !dispatch('submit', { data: 'value' }, { cancelable: true });
+
+    if (cancelled) {
+      console.log('Submit was cancelled');
+      return;
+    }
+
+    console.log('Submit was not cancelled');
+  }
+</script>
+
+<button onclick={handleSubmit}>
+  Submit
+</button>
+```
+
+Parent component:
+
+```svelte
+<script>
+  import ChildComponent from './ChildComponent.svelte';
+
+  function handleSubmit(event) {
+    if (event.detail.data === 'invalid') {
+      event.preventDefault();
+    }
+  }
+</script>
+
+<ChildComponent on:submit={handleSubmit} />
+```
+
+### Event Forwarding
+
+Forward events from child components:
+
+```svelte
+<!-- Button.svelte -->
+<script>
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+</script>
+
+<button onclick={() => dispatch('click')}>
+  <slot />
+</button>
+```
+
+```svelte
+<!-- MiddleComponent.svelte -->
+<script>
+  import Button from './Button.svelte';
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function handleClick() {
+    // Re-dispatch the event
+    dispatch('click');
+  }
+</script>
+
+<Button on:click={handleClick}>Click me</Button>
+```
+
+Or use the shorthand syntax:
+
+```svelte
+<!-- MiddleComponent.svelte -->
+<script>
+  import Button from './Button.svelte';
+</script>
+
+<!-- Forward the click event automatically -->
+<Button on:click />
+```
+
+## Event Characteristics
+
+### No Bubbling
+
+Unlike DOM events, component events created with `createEventDispatcher` do not bubble:
+
+```svelte
+<!-- Events only go one level up -->
+<Grandparent>
+  <Parent>
+    <Child /> <!-- Event dispatched here -->
+  </Parent> <!-- Must explicitly forward to reach Grandparent -->
+</Grandparent>
+```
+
+### CustomEvent Details
+
+Dispatched events are `CustomEvent` instances:
+
+```svelte
+<script>
+  function handleEvent(event) {
+    console.log(event instanceof CustomEvent); // true
+    console.log(event.detail);                 // your event data
+    console.log(event.bubbles);                // false
+    console.log(event.cancelable);            // depends on options
+  }
+</script>
+```
+
+## Migration to Svelte 5
+
+In Svelte 5, component events are replaced with callback props:
+
+```svelte
+<!-- Before (Svelte 4) -->
+<script>
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
+
+  function handleClick() {
+    dispatch('click', { data: 'value' });
+  }
+</script>
+```
+
+```svelte
+<!-- After (Svelte 5) -->
+<script>
+  let { onclick } = $props();
+
+  function handleClick() {
+    onclick?.({ data: 'value' });
+  }
+</script>
+```
+
+Parent usage:
+
+```svelte
+<!-- Before -->
+<Component on:click={handleClick} />
+
+<!-- After -->
+<Component onclick={handleClick} />
+```
+
+## Notes
+
+- Must be called during component initialization
+- Events do not bubble - they only go one level up
+- Events are `CustomEvent` instances
+- The `detail` property contains your event data
+- Return value indicates whether the event was cancelled
+- Unlike DOM events, component events are synchronous
+- In Svelte 5, prefer callback props over `createEventDispatcher`
+
+## See Also
+
+- [Event handlers](/template-syntax/event-handlers) - Handle DOM and component events
+- [Component events](https://svelte.dev/docs/svelte/legacy-on#Component-events) - Legacy component events documentation
+- [Migration guide](https://svelte.dev/docs/svelte/v5-migration-guide#Event-changes-Component-events) - Migrating to callback props

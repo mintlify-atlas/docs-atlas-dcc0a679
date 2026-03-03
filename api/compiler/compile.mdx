@@ -1,0 +1,184 @@
+---
+title: compile()
+description: Convert Svelte source code into a JavaScript module
+---
+
+The `compile()` function converts your `.svelte` source code into a JavaScript module that exports a component.
+
+## Signature
+
+```ts
+function compile(
+  source: string,
+  options: CompileOptions
+): CompileResult
+```
+
+## Parameters
+
+<ParamField path="source" type="string" required>
+  The component source code
+</ParamField>
+
+<ParamField path="options" type="CompileOptions" required>
+  Compiler options. See [Compiler Options](/api/compiler/options) for details.
+</ParamField>
+
+## Return Value
+
+Returns a `CompileResult` object with the following properties:
+
+<ParamField path="js" type="object">
+  The compiled JavaScript
+  
+  <ParamField path="js.code" type="string">
+    The generated JavaScript code
+  </ParamField>
+  
+  <ParamField path="js.map" type="SourceMap">
+    A source map for the JavaScript
+  </ParamField>
+</ParamField>
+
+<ParamField path="css" type="object | null">
+  The compiled CSS (null if no styles)
+  
+  <ParamField path="css.code" type="string">
+    The generated CSS code
+  </ParamField>
+  
+  <ParamField path="css.map" type="SourceMap">
+    A source map for the CSS
+  </ParamField>
+  
+  <ParamField path="css.hasGlobal" type="boolean">
+    Whether the CSS includes global rules
+  </ParamField>
+</ParamField>
+
+<ParamField path="warnings" type="Warning[]">
+  Array of warning objects generated during compilation. Each warning has:
+  - `code`: A string identifying the category of warning
+  - `message`: Human-readable description
+  - `start` and `end`: Location objects with `line`, `column`, and `character` properties (if applicable)
+</ParamField>
+
+<ParamField path="metadata" type="object">
+  Metadata about the compiled component
+  
+  <ParamField path="metadata.runes" type="boolean">
+    Whether the file was compiled in runes mode, either because of an explicit option or inferred from usage
+  </ParamField>
+</ParamField>
+
+<ParamField path="ast" type="AST.Root">
+  The abstract syntax tree of the component
+</ParamField>
+
+## Usage Examples
+
+### Basic Usage
+
+```js
+import { compile } from 'svelte/compiler';
+
+const source = `
+<script>
+  let count = 0;
+</script>
+
+<button on:click={() => count++}>
+  Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+`;
+
+const result = compile(source, {
+  filename: 'App.svelte',
+  dev: false,
+  generate: 'client'
+});
+
+console.log(result.js.code);
+```
+
+### With Vite Plugin
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+
+export default defineConfig({
+  plugins: [
+    svelte({
+      compilerOptions: {
+        dev: process.env.NODE_ENV === 'development',
+        generate: 'client',
+        hydratable: true,
+        css: 'external'
+      }
+    })
+  ]
+});
+```
+
+### With Rollup
+
+```js
+// rollup.config.js
+import svelte from 'rollup-plugin-svelte';
+
+export default {
+  input: 'src/main.js',
+  output: {
+    file: 'public/bundle.js',
+    format: 'iife'
+  },
+  plugins: [
+    svelte({
+      compilerOptions: {
+        dev: process.env.NODE_ENV === 'development',
+        css: 'external',
+        hydratable: true
+      }
+    })
+  ]
+};
+```
+
+### Server-Side Rendering
+
+```js
+import { compile } from 'svelte/compiler';
+import fs from 'fs';
+
+const source = fs.readFileSync('App.svelte', 'utf-8');
+
+const result = compile(source, {
+  filename: 'App.svelte',
+  generate: 'server',
+  dev: false
+});
+
+// Use result.js.code for SSR
+const Component = eval(result.js.code);
+const { html, css, head } = Component.render({ props: {} });
+```
+
+### Custom Element
+
+```js
+import { compile } from 'svelte/compiler';
+
+const result = compile(source, {
+  filename: 'MyElement.svelte',
+  customElement: true,
+  dev: false
+});
+```
+
+## Related
+
+- [Compiler Options](/api/compiler/options) - Full list of compiler options
+- [preprocess()](/api/compiler/preprocess) - Transform component source before compilation
+- [migrate()](/api/compiler/migrate) - Migrate Svelte 4 code to Svelte 5

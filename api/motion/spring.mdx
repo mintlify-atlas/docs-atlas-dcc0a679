@@ -1,0 +1,448 @@
+---
+title: 'spring'
+description: 'A store with spring physics for natural, momentum-based animations'
+---
+
+## Overview
+
+The `spring` store creates values that animate with spring physics, simulating the behavior of a physical spring. Unlike tweened stores that follow a predetermined curve, springs respond naturally to changes with momentum, damping, and stiffness.
+
+<Note>
+  **Deprecated**: The `spring()` function is deprecated in Svelte 5. Use the [`Spring`](https://svelte.dev/docs/svelte/svelte-motion#Spring) class instead.
+</Note>
+
+## Import
+
+```javascript
+import { spring } from 'svelte/motion';
+// or use the new Spring class
+import { Spring } from 'svelte/motion';
+```
+
+## Signature (Legacy)
+
+```typescript
+function spring<T>(
+  value?: T,
+  options?: SpringOptions
+): Spring<T>
+```
+
+## Parameters
+
+<ParamField path="value" type="T" default="undefined">
+  The initial value of the store
+</ParamField>
+
+<ParamField path="options" type="SpringOptions" default="{}">
+  Spring physics configuration
+
+  <Expandable title="options properties">
+    <ParamField path="stiffness" type="number" default="0.15">
+      Controls how rigid the spring is. Higher values (closer to 1) make the spring stiffer and faster. Range: 0 to 1
+    </ParamField>
+
+    <ParamField path="damping" type="number" default="0.8">
+      Controls how quickly the spring settles. Higher values reduce oscillation. Range: 0 to 1
+    </ParamField>
+
+    <ParamField path="precision" type="number" default="0.01">
+      Threshold for considering the spring "settled". Lower values mean more precision but longer animation times
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+Returns a `Spring<T>` store object with:
+
+- `subscribe(fn)` - Subscribe to value changes
+- `set(value, options?)` - Set a new target value
+- `update(fn, options?)` - Update using a callback function
+- `stiffness` - Get/set the stiffness property
+- `damping` - Get/set the damping property
+- `precision` - Get/set the precision threshold
+
+## Set Options
+
+<ParamField path="hard" type="boolean" default="false">
+  If `true`, immediately jump to the target value with no animation
+</ParamField>
+
+<ParamField path="soft" type="boolean | number" default="false">
+  If `true` or a number, creates a "soft" spring that gradually builds momentum. A number specifies the rate (default 0.5 when `true`)
+</ParamField>
+
+## Examples
+
+### Basic Spring
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const coords = spring({ x: 50, y: 50 }, {
+    stiffness: 0.1,
+    damping: 0.25
+  });
+</script>
+
+<svg on:mousemove={(e) => coords.set({ x: e.clientX, y: e.clientY })}>
+  <circle cx={$coords.x} cy={$coords.y} r="10" fill="red" />
+</svg>
+```
+
+### Comparing Spring Settings
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  // Stiff and quick
+  const stiff = spring(0, {
+    stiffness: 0.8,
+    damping: 0.9
+  });
+
+  // Soft and bouncy
+  const bouncy = spring(0, {
+    stiffness: 0.1,
+    damping: 0.3
+  });
+
+  // Moderate balance
+  const balanced = spring(0, {
+    stiffness: 0.15,
+    damping: 0.8
+  });
+
+  function setAll(value) {
+    stiff.set(value);
+    bouncy.set(value);
+    balanced.set(value);
+  }
+</script>
+
+<button onclick={() => setAll(100)}>Animate</button>
+<button onclick={() => setAll(0)}>Reset</button>
+
+<div style="transform: translateX({$stiff}px)">Stiff (fast, no bounce)</div>
+<div style="transform: translateX({$bouncy}px)">Bouncy (slow, oscillates)</div>
+<div style="transform: translateX({$balanced}px)">Balanced (default)</div>
+```
+
+### Dynamic Spring Properties
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const position = spring(0);
+
+  let stiffness = 0.15;
+  let damping = 0.8;
+
+  // Update spring properties reactively
+  $: {
+    position.stiffness = stiffness;
+    position.damping = damping;
+  }
+</script>
+
+<label>
+  Stiffness: {stiffness.toFixed(2)}
+  <input type="range" bind:value={stiffness} min="0" max="1" step="0.01" />
+</label>
+
+<label>
+  Damping: {damping.toFixed(2)}
+  <input type="range" bind:value={damping} min="0" max="1" step="0.01" />
+</label>
+
+<button onclick={() => position.set(position.target === 0 ? 200 : 0)}>
+  Toggle
+</button>
+
+<div style="transform: translateX({$position}px)">Spring Element</div>
+```
+
+### Hard vs Soft Springs
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const position = spring(0);
+</script>
+
+<!-- Normal spring animation -->
+<button onclick={() => position.set(100)}>Normal</button>
+
+<!-- Instant jump, no animation -->
+<button onclick={() => position.set(100, { hard: true })}>
+  Hard (instant)
+</button>
+
+<!-- Gradual momentum build-up -->
+<button onclick={() => position.set(100, { soft: true })}>
+  Soft (gradual)
+</button>
+
+<!-- Custom soft rate (slower) -->
+<button onclick={() => position.set(100, { soft: 0.2 })}>
+  Very Soft
+</button>
+```
+
+### Mouse Follow with Spring
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const coords = spring(
+    { x: 0, y: 0 },
+    {
+      stiffness: 0.05,
+      damping: 0.4
+    }
+  );
+
+  let cursor = { x: 0, y: 0 };
+
+  function handleMouseMove(event) {
+    cursor = { x: event.clientX, y: event.clientY };
+    coords.set(cursor);
+  }
+</script>
+
+<svelte:window on:mousemove={handleMouseMove} />
+
+<div
+  class="follower"
+  style="
+    left: {$coords.x}px;
+    top: {$coords.y}px;
+  "
+/>
+
+<style>
+  .follower {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 100, 100, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+</style>
+```
+
+### Spring Size Animation
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const size = spring(100, {
+    stiffness: 0.2,
+    damping: 0.5
+  });
+
+  let expanded = false;
+
+  function toggle() {
+    expanded = !expanded;
+    size.set(expanded ? 300 : 100);
+  }
+</script>
+
+<button onclick={toggle}>
+  {expanded ? 'Shrink' : 'Expand'}
+</button>
+
+<div
+  class="box"
+  style="
+    width: {$size}px;
+    height: {$size}px;
+  "
+/>
+```
+
+### Multi-Property Spring
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const transform = spring(
+    {
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotate: 0
+    },
+    {
+      stiffness: 0.1,
+      damping: 0.3
+    }
+  );
+
+  function randomize() {
+    transform.set({
+      x: Math.random() * 400 - 200,
+      y: Math.random() * 400 - 200,
+      scale: Math.random() * 2 + 0.5,
+      rotate: Math.random() * 360
+    });
+  }
+</script>
+
+<button onclick={randomize}>Randomize</button>
+
+<div
+  class="box"
+  style="
+    transform:
+      translate({$transform.x}px, {$transform.y}px)
+      scale({$transform.scale})
+      rotate({$transform.rotate}deg);
+  "
+/>
+```
+
+### Array Spring
+
+```svelte
+<script>
+  import { spring } from 'svelte/motion';
+
+  const values = spring([0, 0, 0, 0], {
+    stiffness: 0.15,
+    damping: 0.6
+  });
+
+  function randomize() {
+    values.set(Array.from({ length: 4 }, () => Math.random() * 100));
+  }
+</script>
+
+<button onclick={randomize}>Randomize</button>
+
+<div class="bars">
+  {#each $values as value, i}
+    <div class="bar" style="height: {value}%">{i + 1}</div>
+  {/each}
+</div>
+```
+
+## New Spring Class (Svelte 5+)
+
+The modern replacement for `spring()` is the `Spring` class:
+
+```svelte
+<script>
+  import { Spring } from 'svelte/motion';
+
+  const spring = new Spring(0, {
+    stiffness: 0.15,
+    damping: 0.8
+  });
+</script>
+
+<input type="range" bind:value={spring.target} />
+<input type="range" bind:value={spring.current} disabled />
+```
+
+### Reactive Spring with `Spring.of()`
+
+```svelte
+<script>
+  import { Spring } from 'svelte/motion';
+
+  let { number } = $props();
+
+  // Automatically updates when number changes
+  const spring = Spring.of(() => number, {
+    stiffness: 0.1,
+    damping: 0.5
+  });
+</script>
+
+<div>Target: {number}</div>
+<div>Current: {spring.current}</div>
+```
+
+### Preserve Momentum (Svelte 5+)
+
+```svelte
+<script>
+  import { Spring } from 'svelte/motion';
+
+  const spring = new Spring(0);
+
+  function fling() {
+    // Continue current trajectory for 500ms before settling
+    spring.set(200, { preserveMomentum: 500 });
+  }
+</script>
+
+<button onclick={fling}>Fling</button>
+```
+
+## Supported Value Types
+
+The spring store can animate:
+
+- **Numbers**: `spring(0)` → `spring(100)`
+- **Dates**: `spring(new Date())` → `spring(new Date(2025, 0, 1))`
+- **Arrays**: `spring([0, 0])` → `spring([100, 200])`
+- **Objects**: `spring({ x: 0, y: 0 })` → `spring({ x: 100, y: 100 })`
+
+<Warning>
+  Values must be of compatible types. Attempting to spring between incompatible types will throw an error.
+</Warning>
+
+## Physics Parameters Guide
+
+### Stiffness (0 to 1)
+
+- **0.01 - 0.1**: Very soft, slow, bouncy (good for floating elements)
+- **0.15** (default): Balanced, natural motion
+- **0.3 - 0.5**: Stiffer, faster response
+- **0.8 - 1.0**: Very stiff, almost instant (like a tween)
+
+### Damping (0 to 1)
+
+- **0.1 - 0.3**: Heavy oscillation, very bouncy
+- **0.5 - 0.7**: Moderate bounce, overshoots once or twice
+- **0.8** (default): Minimal overshoot, smooth settling
+- **0.9 - 1.0**: No overshoot, critically damped
+
+### Precision (default 0.01)
+
+- **0.001**: Very precise, longer animation time
+- **0.01** (default): Good balance
+- **0.1**: Less precise, stops sooner
+
+## Choosing Between Spring and Tween
+
+Use **spring** when:
+- You want natural, physics-based motion
+- Values change frequently (e.g., mouse tracking)
+- You need momentum and realistic deceleration
+- Bouncy or elastic effects are desired
+
+Use **tweened** when:
+- You need precise control over duration
+- The animation should follow a specific easing curve
+- Timing must be exact and predictable
+- Simple, controlled transitions are sufficient
+
+## See Also
+
+- [tweened](/api/motion/tweened) - For duration-based animations
+- [Spring Class](https://svelte.dev/docs/svelte/svelte-motion#Spring) - Modern replacement
+- [prefersReducedMotion](https://svelte.dev/docs/svelte/svelte-motion#prefersReducedMotion) - Accessibility consideration

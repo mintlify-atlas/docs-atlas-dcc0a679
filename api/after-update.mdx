@@ -1,0 +1,136 @@
+---
+title: afterUpdate
+description: Schedule a callback after the component updates (deprecated)
+---
+
+<Warning>
+  **Deprecated:** Use [`$effect`](/runes/effect) instead. This function only works in legacy mode.
+</Warning>
+
+Schedules a callback to run immediately after the component has been updated.
+
+The first time the callback runs will be after the initial `onMount`.
+
+## Signature
+
+```ts
+function afterUpdate(fn: () => void): void
+```
+
+<ParamField path="fn" type="function" required>
+  A function to run after the component updates.
+</ParamField>
+
+## Usage
+
+```svelte
+<script>
+  import { afterUpdate } from 'svelte';
+
+  afterUpdate(() => {
+    console.log('component just updated');
+  });
+</script>
+```
+
+## Migration to runes
+
+In runes mode, use `$effect` instead:
+
+### Before (legacy mode)
+
+```svelte
+<script>
+  import { afterUpdate } from 'svelte';
+
+  let count = 0;
+
+  afterUpdate(() => {
+    console.log('count updated to:', count);
+  });
+</script>
+
+<button on:click={() => count++}>
+  clicks: {count}
+</button>
+```
+
+### After (runes mode)
+
+```svelte
+<script>
+  let count = $state(0);
+
+  $effect(() => {
+    console.log('count updated to:', count);
+  });
+</script>
+
+<button onclick={() => count++}>
+  clicks: {count}
+</button>
+```
+
+## Common use case: Auto-scrolling
+
+### Before (legacy mode)
+
+```svelte
+<script>
+  import { afterUpdate } from 'svelte';
+
+  let messages = [];
+  let container;
+
+  afterUpdate(() => {
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  });
+</script>
+
+<div bind:this={container}>
+  {#each messages as message}
+    <p>{message}</p>
+  {/each}
+</div>
+```
+
+### After (runes mode)
+
+```svelte
+<script>
+  let messages = $state([]);
+  let container;
+
+  $effect(() => {
+    // Reference messages to track changes
+    messages;
+    
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  });
+</script>
+
+<div bind:this={container}>
+  {#each messages as message}
+    <p>{message}</p>
+  {/each}
+</div>
+```
+
+## Key differences
+
+- `afterUpdate` only works in legacy mode (non-runes components)
+- `$effect` is the runes-mode equivalent
+- `$effect` runs after DOM updates, similar to `afterUpdate`
+- The first run of `afterUpdate` happens after `onMount`
+- `$effect` tracks dependencies automatically; reference state to react to changes
+
+## Notes
+
+- **Only works in legacy mode**
+- Runs after every component update
+- First run is after the initial `onMount`
+- Does not run during server-side rendering

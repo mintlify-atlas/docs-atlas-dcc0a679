@@ -1,0 +1,204 @@
+---
+title: render()
+description: Server-side rendering function to generate HTML from Svelte components
+---
+
+The `render()` function is used for server-side rendering (SSR) of Svelte components. It takes a component and returns an object with properties for populating HTML on the server.
+
+## Import
+
+```javascript
+import { render } from 'svelte/server';
+```
+
+## Signature
+
+```typescript
+function render<Props extends Record<string, any>>(
+  component: Component<Props>,
+  options?: {
+    props?: Omit<Props, '$$slots' | '$$events'>;
+    context?: Map<any, any>;
+    idPrefix?: string;
+    csp?: { nonce?: string; hash?: boolean };
+    transformError?: (error: unknown) => unknown;
+  }
+): RenderOutput;
+```
+
+## Parameters
+
+<ParamField path="component" type="Component" required>
+  The Svelte component to render
+</ParamField>
+
+<ParamField path="options" type="object">
+  Configuration options for rendering
+
+  <ParamField path="options.props" type="object">
+    Props to pass to the component (excluding `$$slots` and `$$events`)
+  </ParamField>
+
+  <ParamField path="options.context" type="Map<any, any>">
+    Context map that will be available to the component via `getContext()`
+  </ParamField>
+
+  <ParamField path="options.idPrefix" type="string">
+    Prefix for generated IDs to avoid conflicts when rendering multiple instances
+  </ParamField>
+
+  <ParamField path="options.csp" type="object">
+    Content Security Policy configuration for inline scripts
+
+    <ParamField path="options.csp.nonce" type="string">
+      Nonce value to add to generated `<script>` tags
+    </ParamField>
+
+    <ParamField path="options.csp.hash" type="boolean">
+      Whether to generate SHA-256 hashes for CSP script-src directive
+    </ParamField>
+  </ParamField>
+
+  <ParamField path="options.transformError" type="(error: unknown) => unknown">
+    Function to transform errors caught by error boundaries before rendering
+  </ParamField>
+</ParamField>
+
+## Return Value
+
+The `render()` function returns a `RenderOutput` object with the following properties:
+
+<ResponseField name="head" type="string">
+  HTML content that should be inserted into the `<head>` element, including component styles and meta tags
+</ResponseField>
+
+<ResponseField name="body" type="string">
+  HTML content that should be inserted into the `<body>` element
+</ResponseField>
+
+<ResponseField name="html" type="string" deprecated>
+  Alias for `body`. Use `body` instead
+</ResponseField>
+
+<ResponseField name="hashes" type="object">
+  CSP hashes for generated scripts
+
+  <ResponseField name="hashes.script" type="string[]">
+    Array of SHA-256 hash values (format: `sha256-{hash}`) for use in CSP `script-src` directive
+  </ResponseField>
+</ResponseField>
+
+The return value is also a `PromiseLike`, so you can `await` it to handle asynchronous rendering:
+
+```javascript
+const result = await render(Component, { props: { name: 'world' } });
+```
+
+## Usage
+
+### Basic Server-Side Rendering
+
+```javascript
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const result = render(App, {
+  props: {
+    name: 'world'
+  }
+});
+
+const html = `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      ${result.head}
+    </head>
+    <body>
+      ${result.body}
+    </body>
+  </html>
+`;
+```
+
+### With Context
+
+```javascript
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const context = new Map();
+context.set('user', { id: 1, name: 'Alice' });
+
+const result = render(App, {
+  props: { page: 'home' },
+  context
+});
+```
+
+### With Content Security Policy
+
+```javascript
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+// Using nonce
+const result = render(App, {
+  csp: {
+    nonce: 'random-nonce-value'
+  }
+});
+
+// Using hash
+const result = render(App, {
+  csp: {
+    hash: true
+  }
+});
+
+// Use the hashes in your CSP header
+const cspHeader = `script-src 'self' ${result.hashes.script.map(h => `'${h}'`).join(' ')}`;
+```
+
+### Asynchronous Rendering
+
+```javascript
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+// Await the result for async components
+const result = await render(App, {
+  props: { data: fetchData() }
+});
+
+console.log(result.head); // Styles and meta tags
+console.log(result.body); // Component HTML
+```
+
+### Error Handling
+
+```javascript
+import { render } from 'svelte/server';
+import App from './App.svelte';
+
+const result = render(App, {
+  transformError: (error) => {
+    // Log error for monitoring
+    console.error('SSR Error:', error);
+    
+    // Return sanitized error for client
+    return {
+      message: 'An error occurred',
+      code: error.code
+    };
+  }
+});
+```
+
+## Notes
+
+- The `render()` function is only available when compiling with the `server` option
+- Generated HTML includes hydration markers for client-side hydration
+- The function will throw if CSP options include both `nonce` and `hash`
+- Component lifecycle hooks like `onMount` do not run during server-side rendering
+- The `html` property is deprecated; use `body` instead

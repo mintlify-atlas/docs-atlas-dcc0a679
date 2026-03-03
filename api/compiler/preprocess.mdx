@@ -1,0 +1,294 @@
+---
+title: preprocess()
+description: Transform Svelte component source code before compilation
+---
+
+The `preprocess()` function provides hooks for transforming component source code before compilation. Use it to add support for TypeScript, PostCSS, SCSS, and other preprocessors.
+
+## Signature
+
+```ts
+function preprocess(
+  source: string,
+  preprocessor: PreprocessorGroup | PreprocessorGroup[],
+  options?: { filename?: string }
+): Promise<Processed>
+```
+
+## Parameters
+
+<ParamField path="source" type="string" required>
+  The component source code to preprocess
+</ParamField>
+
+<ParamField path="preprocessor" type="PreprocessorGroup | PreprocessorGroup[]" required>
+  A preprocessor group or array of preprocessor groups. Each group can have `markup`, `script`, and `style` hooks.
+</ParamField>
+
+<ParamField path="options.filename" type="string">
+  The filename of the component (used for debugging and source maps)
+</ParamField>
+
+## Return Value
+
+Returns a `Promise<Processed>` with:
+
+<ParamField path="code" type="string">
+  The transformed source code
+</ParamField>
+
+<ParamField path="map" type="string | object">
+  A source map mapping back to the original code
+</ParamField>
+
+<ParamField path="dependencies" type="string[]">
+  Array of additional files to watch for changes
+</ParamField>
+
+## Preprocessor Hooks
+
+### markup
+
+Processes the entire component source.
+
+<ParamField path="markup" type="MarkupPreprocessor">
+  ```ts
+  type MarkupPreprocessor = (options: {
+    content: string;  // The whole Svelte file content
+    filename?: string; // The filename of the Svelte file
+  }) => Processed | void | Promise<Processed | void>
+  ```
+</ParamField>
+
+### script
+
+Processes the content of `<script>` tags.
+
+<ParamField path="script" type="Preprocessor">
+  ```ts
+  type Preprocessor = (options: {
+    content: string;  // The script tag content
+    attributes: Record<string, string | boolean>; // Tag attributes
+    markup: string;   // The whole Svelte file content
+    filename?: string; // The filename of the Svelte file
+  }) => Processed | void | Promise<Processed | void>
+  ```
+</ParamField>
+
+### style
+
+Processes the content of `<style>` tags.
+
+<ParamField path="style" type="Preprocessor">
+  Same signature as `script` preprocessor
+</ParamField>
+
+## Processed Return Type
+
+Each preprocessor hook can return:
+
+<ParamField path="code" type="string" required>
+  The transformed code
+</ParamField>
+
+<ParamField path="map" type="string | object">
+  A source map
+</ParamField>
+
+<ParamField path="dependencies" type="string[]">
+  Files to watch for changes
+</ParamField>
+
+<ParamField path="attributes" type="Record<string, string | boolean>">
+  (script/style only) Updated attributes for the tag
+</ParamField>
+
+## Usage Examples
+
+### TypeScript Preprocessor
+
+```js
+import { preprocess } from 'svelte/compiler';
+import ts from 'typescript';
+
+const preprocessor = {
+  script({ content, attributes, filename }) {
+    if (attributes.lang !== 'ts') return;
+
+    const result = ts.transpileModule(content, {
+      compilerOptions: { 
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.ESNext
+      },
+      fileName: filename
+    });
+
+    return {
+      code: result.outputText,
+      map: result.sourceMapText
+    };
+  }
+};
+
+const result = await preprocess(source, preprocessor, {
+  filename: 'App.svelte'
+});
+```
+
+### SCSS Preprocessor
+
+```js
+import { preprocess } from 'svelte/compiler';
+import * as sass from 'sass';
+
+const preprocessor = {
+  style({ content, attributes, filename }) {
+    if (attributes.lang !== 'scss') return;
+
+    const result = sass.compileString(content, {
+      sourceMap: true,
+      loadPaths: ['node_modules']
+    });
+
+    return {
+      code: result.css,
+      map: result.sourceMap,
+      dependencies: result.loadedUrls
+        .map(url => url.pathname)
+        .filter(path => path !== filename)
+    };
+  }
+};
+```
+
+### Multiple Preprocessors
+
+```js
+import { preprocess } from 'svelte/compiler';
+import { typescript } from 'svelte-preprocess-typescript';
+import { scss } from 'svelte-preprocess-scss';
+import autoprefixer from 'autoprefixer';
+import postcss from 'postcss';
+
+const result = await preprocess(source, [
+  // Run TypeScript first
+  {
+    script: typescript()
+  },
+  // Then SCSS
+  {
+    style: scss()
+  },
+  // Then PostCSS
+  {
+    async style({ content }) {
+      const result = await postcss([autoprefixer]).process(content);
+      return {
+        code: result.css,
+        map: result.map.toString()
+      };
+    }
+  }
+], { filename: 'App.svelte' });
+```
+
+### Markup Preprocessor
+
+```js
+import { preprocess } from 'svelte/compiler';
+import { marked } from 'marked';
+
+const preprocessor = {
+  markup({ content, filename }) {
+    // Transform markdown blocks
+    const transformed = content.replace(
+      /<markdown>([\s\S]*?)<\/markdown>/g,
+      (_, markdown) => marked(markdown)
+    );
+
+    return {
+      code: transformed
+    };
+  }
+};
+```
+
+### Using svelte-preprocess
+
+```js
+import { preprocess } from 'svelte/compiler';
+import sveltePreprocess from 'svelte-preprocess';
+
+const result = await preprocess(
+  source,
+  sveltePreprocess({
+    typescript: {
+      tsconfigFile: './tsconfig.json'
+    },
+    scss: {
+      includePaths: ['src', 'node_modules']
+    },
+    postcss: {
+      plugins: [autoprefixer]
+    }
+  }),
+  { filename: 'App.svelte' }
+);
+```
+
+### With Vite
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import sveltePreprocess from 'svelte-preprocess';
+
+export default defineConfig({
+  plugins: [
+    svelte({
+      preprocess: sveltePreprocess({
+        typescript: true,
+        postcss: true
+      })
+    })
+  ]
+});
+```
+
+### Watching Dependencies
+
+```js
+import { preprocess } from 'svelte/compiler';
+import fs from 'fs';
+import path from 'path';
+
+const preprocessor = {
+  async style({ content, filename }) {
+    const dependencies = [];
+    
+    // Process @import statements
+    const processed = content.replace(
+      /@import ['"]([^'"]+)['"];/g,
+      (match, importPath) => {
+        const fullPath = path.resolve(
+          path.dirname(filename),
+          importPath
+        );
+        dependencies.push(fullPath);
+        return fs.readFileSync(fullPath, 'utf-8');
+      }
+    );
+
+    return {
+      code: processed,
+      dependencies
+    };
+  }
+};
+```
+
+## Related
+
+- [compile()](/api/compiler/compile) - Compile preprocessed source
+- [Compiler Options](/api/compiler/options) - Compiler configuration

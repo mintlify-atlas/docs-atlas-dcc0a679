@@ -1,0 +1,228 @@
+---
+title: get
+description: Get the current value from a store by subscribing and immediately unsubscribing
+---
+
+Get the current value from a store by subscribing and immediately unsubscribing. This is useful when you need to read a store value outside of the reactive context.
+
+## Usage
+
+```ts
+import { get, writable } from 'svelte/store';
+
+const count = writable(0);
+const currentValue = get(count); // 0
+```
+
+## Signature
+
+```ts
+function get<T>(store: Readable<T>): T
+```
+
+<ParamField path="store" type="Readable<T>">
+  A readable or writable store to get the value from.
+</ParamField>
+
+<ResponseField name="T" type="any">
+  The current value of the store.
+</ResponseField>
+
+## When to use get()
+
+Use `get()` when you need to read a store value outside of Svelte's reactive context:
+
+- In event handlers where you need the current value but don't want to reactively track it
+- In regular JavaScript/TypeScript modules (not components)
+- When you need a one-time snapshot of the value
+- In server-side code or utility functions
+
+**Note**: Inside Svelte components, prefer using the `$` prefix for auto-subscription, which keeps your component reactive:
+
+```svelte
+<script>
+  import { writable } from 'svelte/store';
+
+  const count = writable(0);
+
+  // ✅ Good: reactive
+  $: doubled = $count * 2;
+
+  // ❌ Avoid: not reactive
+  const doubled = get(count) * 2;
+</script>
+```
+
+## Examples
+
+### In event handlers
+
+```svelte
+<script>
+  import { get, writable } from 'svelte/store';
+
+  const count = writable(0);
+
+  function handleClick() {
+    // Get current value without subscribing
+    const current = get(count);
+    console.log('Current count:', current);
+    
+    count.set(current + 1);
+  }
+</script>
+
+<button on:click={handleClick}>Increment</button>
+```
+
+### In utility functions
+
+```ts
+// stores.ts
+import { writable } from 'svelte/store';
+
+export const user = writable({
+  name: 'Alice',
+  loggedIn: false
+});
+```
+
+```ts
+// auth.ts
+import { get } from 'svelte/store';
+import { user } from './stores.js';
+
+export function isLoggedIn(): boolean {
+  return get(user).loggedIn;
+}
+
+export function login(name: string) {
+  user.set({ name, loggedIn: true });
+}
+
+export function logout() {
+  const currentUser = get(user);
+  user.set({ ...currentUser, loggedIn: false });
+}
+```
+
+### Conditional logic
+
+```svelte
+<script>
+  import { get, writable } from 'svelte/store';
+
+  const settings = writable({
+    theme: 'dark',
+    notifications: true
+  });
+
+  function toggleTheme() {
+    const current = get(settings);
+    settings.update(s => ({
+      ...s,
+      theme: current.theme === 'dark' ? 'light' : 'dark'
+    }));
+  }
+</script>
+```
+
+### Derived stores with get()
+
+```ts
+import { derived, get, writable } from 'svelte/store';
+
+const items = writable([1, 2, 3, 4, 5]);
+const filter = writable('even');
+
+const filteredItems = derived(
+  [items, filter],
+  ([$items, $filter]) => {
+    if ($filter === 'even') {
+      return $items.filter(n => n % 2 === 0);
+    }
+    return $items.filter(n => n % 2 !== 0);
+  }
+);
+
+// Get the current filtered value
+const current = get(filteredItems); // [2, 4]
+```
+
+### Server-side usage
+
+```ts
+// This runs on the server
+import { get } from 'svelte/store';
+import { user } from './stores.js';
+
+export async function load() {
+  const currentUser = get(user);
+  
+  return {
+    user: currentUser
+  };
+}
+```
+
+### Comparing values
+
+```svelte
+<script>
+  import { get, writable } from 'svelte/store';
+
+  const count = writable(0);
+  const previousCount = writable(0);
+
+  function increment() {
+    const current = get(count);
+    previousCount.set(current);
+    count.update(n => n + 1);
+  }
+</script>
+
+<p>Current: {$count}</p>
+<p>Previous: {$previousCount}</p>
+<button on:click={increment}>Increment</button>
+```
+
+## Avoid overuse
+
+While `get()` is useful, avoid overusing it in Svelte components. The `$` prefix provides automatic subscription management:
+
+```svelte
+<script>
+  import { get, writable } from 'svelte/store';
+
+  const count = writable(0);
+
+  // ❌ Bad: requires manual updates and isn't reactive
+  let doubled = get(count) * 2;
+  
+  function updateDoubled() {
+    doubled = get(count) * 2;
+  }
+
+  // ✅ Good: automatically reactive
+  $: doubled = $count * 2;
+</script>
+```
+
+## TypeScript
+
+```ts
+import { get, writable, type Writable } from 'svelte/store';
+
+interface User {
+  name: string;
+  age: number;
+}
+
+const user: Writable<User> = writable({
+  name: 'Alice',
+  age: 30
+});
+
+const currentUser: User = get(user);
+console.log(currentUser.name); // 'Alice'
+```

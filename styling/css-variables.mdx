@@ -1,0 +1,224 @@
+---
+title: CSS Variables
+description: Learn how to pass CSS custom properties to Svelte components for dynamic theming and styling.
+---
+
+Svelte allows you to pass CSS custom properties (CSS variables) to components, enabling dynamic theming and flexible component styling.
+
+## Passing CSS Custom Properties
+
+You can pass both static and dynamic CSS custom properties to components:
+
+```svelte
+<Slider
+	bind:value
+	min={0}
+	max={100}
+	--track-color="black"
+	--thumb-color="rgb({r} {g} {b})"
+/>
+```
+
+## How It Works
+
+The Svelte compiler transforms CSS custom properties into wrapper elements. The above code essentially desugars to:
+
+```svelte
+<svelte-css-wrapper style="display: contents; --track-color: black; --thumb-color: rgb({r} {g} {b})">
+	<Slider
+		bind:value
+		min={0}
+		max={100}
+	/>
+</svelte-css-wrapper>
+```
+
+<Note>
+The `display: contents` ensures the wrapper doesn't affect layout. However, it will affect CSS selectors that use the `>` combinator to target an element directly inside the component's container.
+</Note>
+
+### SVG Elements
+
+For SVG elements, Svelte uses a `<g>` element instead:
+
+```svelte
+<g style="--track-color: black; --thumb-color: rgb({r} {g} {b})">
+	<Slider
+		bind:value
+		min={0}
+		max={100}
+	/>
+</g>
+```
+
+## Using CSS Variables in Components
+
+Inside the component, read these custom properties using [`var(...)`](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties) with optional fallback values:
+
+```svelte
+<!--- file: Slider.svelte --->
+<style>
+	.track {
+		background: var(--track-color, #aaa);
+	}
+
+	.thumb {
+		background: var(--thumb-color, blue);
+	}
+</style>
+
+<div class="track">
+	<div class="thumb"></div>
+</div>
+```
+
+The fallback values (`#aaa` and `blue`) are used when the custom properties aren't provided.
+
+## Inheriting from Parent Elements
+
+You don't have to specify values directly on the component. As long as custom properties are defined on a parent element, the component can use them:
+
+```svelte
+<!--- file: App.svelte --->
+<div style="--track-color: purple;">
+	<Slider bind:value min={0} max={100} />
+</div>
+```
+
+### Global CSS Variables
+
+It's common to define custom properties on the `:root` element in a global stylesheet so they apply to your entire application:
+
+```css
+/* global.css */
+:root {
+	--primary-color: #4CAF50;
+	--secondary-color: #2196F3;
+	--text-color: #333;
+	--background-color: #fff;
+}
+```
+
+Components can then consume these variables:
+
+```svelte
+<style>
+	.button {
+		background: var(--primary-color);
+		color: var(--background-color);
+	}
+</style>
+```
+
+## Practical Examples
+
+### Themeable Card Component
+
+```svelte
+<!--- file: Card.svelte --->
+<style>
+	.card {
+		background: var(--card-bg, white);
+		border: 1px solid var(--card-border, #ddd);
+		padding: var(--card-padding, 1rem);
+		border-radius: var(--card-radius, 4px);
+	}
+
+	.card-title {
+		color: var(--card-title-color, black);
+		font-size: var(--card-title-size, 1.5rem);
+	}
+</style>
+
+<div class="card">
+	<h2 class="card-title">
+		<slot name="title" />
+	</h2>
+	<slot />
+</div>
+```
+
+Usage:
+
+```svelte
+<Card 
+	--card-bg="#f5f5f5"
+	--card-border="#ccc"
+	--card-title-color="#333"
+>
+	<span slot="title">Custom Card</span>
+	This card is themed with CSS variables.
+</Card>
+```
+
+### Dark Mode Toggle
+
+```svelte
+<!--- file: App.svelte --->
+<script>
+	let darkMode = $state(false);
+</script>
+
+<div 
+	class="app"
+	style:--bg-color={darkMode ? '#1a1a1a' : '#ffffff'}
+	style:--text-color={darkMode ? '#ffffff' : '#000000'}
+>
+	<button onclick={() => darkMode = !darkMode}>
+		Toggle {darkMode ? 'Light' : 'Dark'} Mode
+	</button>
+	<Card>
+		<span slot="title">Themed Content</span>
+		This content adapts to the theme.
+	</Card>
+</div>
+
+<style>
+	.app {
+		background: var(--bg-color);
+		color: var(--text-color);
+		min-height: 100vh;
+		padding: 2rem;
+	}
+</style>
+```
+
+### Dynamic Component Colors
+
+```svelte
+<!--- file: ColorfulList.svelte --->
+<script>
+	let items = [
+		{ name: 'Red Item', color: '#ff0000' },
+		{ name: 'Green Item', color: '#00ff00' },
+		{ name: 'Blue Item', color: '#0000ff' }
+	];
+</script>
+
+{#each items as item}
+	<ListItem --item-color={item.color}>
+		{item.name}
+	</ListItem>
+{/each}
+```
+
+```svelte
+<!--- file: ListItem.svelte --->
+<style>
+	.item {
+		background: var(--item-color, gray);
+		color: white;
+		padding: 1rem;
+		margin: 0.5rem 0;
+		border-radius: 4px;
+	}
+</style>
+
+<div class="item">
+	<slot />
+</div>
+```
+
+<Note>
+CSS custom properties are a powerful way to create themeable, reusable components. They cascade through the component tree and can be overridden at any level.
+</Note>

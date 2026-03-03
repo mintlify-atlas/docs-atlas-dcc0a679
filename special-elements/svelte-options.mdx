@@ -1,0 +1,161 @@
+---
+title: '<svelte:options>'
+description: 'Configure per-component compiler options'
+---
+
+```svelte
+<svelte:options option={value} />
+```
+
+The `<svelte:options>` element provides a place to specify per-component compiler options. These options control how Svelte compiles the component.
+
+## Options
+
+<ParamField path="runes" type="boolean">
+  Forces a component into runes mode or legacy mode.
+  
+  - `runes={true}` — forces the component into runes mode
+  - `runes={false}` — forces the component into legacy mode
+  
+  If not specified, the mode is determined by the file's syntax.
+</ParamField>
+
+<ParamField path="namespace" type="string">
+  The namespace where this component will be used.
+  
+  Possible values:
+  - `"html"` (default) — for regular HTML elements
+  - `"svg"` — for SVG elements
+  - `"mathml"` — for MathML elements
+</ParamField>
+
+<ParamField path="customElement" type="string | object">
+  Options for compiling this component as a custom element.
+  
+  - If a string is provided, it's used as the tag name
+  - If an object is provided, it can contain custom element configuration options
+  
+  See the [custom elements documentation](https://svelte.dev/docs/svelte/custom-elements) for details.
+</ParamField>
+
+<ParamField path="css" type="string">
+  Controls how component styles are injected.
+  
+  - `css="injected"` — styles are injected inline. During server-side rendering, it's injected as a `<style>` tag in the head. During client-side rendering, it's loaded via JavaScript.
+</ParamField>
+
+## Usage
+
+### Force runes mode
+
+```svelte
+<svelte:options runes={true} />
+
+<script>
+  let count = $state(0);
+</script>
+
+<button onclick={() => count++}>
+  Clicks: {count}
+</button>
+```
+
+### SVG namespace
+
+```svelte
+<svelte:options namespace="svg" />
+
+<circle cx="50" cy="50" r="40" />
+```
+
+### Custom element
+
+```svelte
+<svelte:options customElement="my-button" />
+
+<button>
+  <slot />
+</button>
+```
+
+### Custom element with options
+
+```svelte
+<svelte:options 
+  customElement={{
+    tag: 'my-component',
+    shadow: 'open',
+    props: {
+      name: { reflect: true, type: 'String', attribute: 'name' }
+    }
+  }}
+/>
+
+<script>
+  let { name } = $props();
+</script>
+
+<p>Hello {name}!</p>
+```
+
+### Injected CSS
+
+```svelte
+<svelte:options css="injected" />
+
+<style>
+  p {
+    color: red;
+  }
+</style>
+
+<p>This will have injected styles</p>
+```
+
+### MathML namespace
+
+```svelte
+<svelte:options namespace="mathml" />
+
+<math>
+  <mrow>
+    <mi>x</mi>
+    <mo>=</mo>
+    <mn>42</mn>
+  </mrow>
+</math>
+```
+
+## Deprecated Options (Svelte 4)
+
+<Warning>
+The following options are deprecated in Svelte 5 and non-functional in runes mode. They are only supported in legacy mode.
+</Warning>
+
+<ParamField path="immutable" type="boolean">
+  **Deprecated.** Controls whether the compiler can use simple referential equality checks.
+  
+  - `immutable={true}` — you never use mutable data
+  - `immutable={false}` — the default
+</ParamField>
+
+<ParamField path="accessors" type="boolean">
+  **Deprecated.** Adds getters and setters for the component's props.
+  
+  - `accessors={true}` — adds getters and setters
+  - `accessors={false}` — the default
+</ParamField>
+
+### Legacy immutable option
+
+```svelte
+<!-- Only works in legacy mode -->
+<svelte:options immutable={true} />
+```
+
+### Legacy accessors option
+
+```svelte
+<!-- Only works in legacy mode -->
+<svelte:options accessors={true} />
+```

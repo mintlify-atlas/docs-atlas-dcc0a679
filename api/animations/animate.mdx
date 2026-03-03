@@ -1,0 +1,264 @@
+---
+title: "animate:"
+description: Animate elements when their position changes in a keyed each block
+---
+
+The `animate:` directive triggers animations when elements are reordered within a keyed each block. Unlike transitions, animations are triggered by position changes, not element addition or removal.
+
+## Basic Usage
+
+Animations must be used on immediate children of a keyed each block:
+
+```svelte
+<script>
+  import { flip } from 'svelte/animate';
+
+  let items = [
+    { id: 1, name: 'Item 1' },
+    { id: 2, name: 'Item 2' },
+    { id: 3, name: 'Item 3' }
+  ];
+
+  function reorder() {
+    items = items.reverse();
+  }
+</script>
+
+<button on:click={reorder}>Reverse</button>
+
+{#each items as item (item.id)}
+  <div animate:flip>
+    {item.name}
+  </div>
+{/each}
+```
+
+## When Animations Trigger
+
+Animations run when:
+
+- An element's position changes within a keyed each block
+- The list is reordered or sorted
+- Items are rearranged in the data array
+
+Animations do **not** run when:
+
+- Elements are added to the list (use `in:` transitions)
+- Elements are removed from the list (use `out:` transitions)
+- The each block is not keyed
+
+## With Parameters
+
+Pass parameters to customize the animation behavior:
+
+```svelte
+{#each list as item (item.id)}
+  <li animate:flip={{ delay: 200, duration: 400 }}>
+    {item.text}
+  </li>
+{/each}
+```
+
+The double curly braces `{{}}` represent an object literal inside an expression tag.
+
+## Built-in Animation
+
+Svelte provides one built-in animation function:
+
+- [`flip`](/api/animations/flip) - Smoothly animates position changes using the FLIP technique
+
+```svelte
+import { flip } from 'svelte/animate';
+```
+
+## Custom Animation Functions
+
+Create custom animations by providing a function that returns an animation configuration:
+
+```svelte
+<script>
+  import { cubicOut } from 'svelte/easing';
+
+  /**
+   * @param {HTMLElement} node - The element being animated
+   * @param {{ from: DOMRect; to: DOMRect }} positions - Start and end positions
+   * @param {any} params - Custom parameters
+   */
+  function whizz(node, { from, to }, params) {
+    const dx = from.left - to.left;
+    const dy = from.top - to.top;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    return {
+      delay: 0,
+      duration: Math.sqrt(distance) * 120,
+      easing: cubicOut,
+      css: (t, u) => {
+        return `transform: translate(${ u * dx }px, ${ u * dy }px) rotate(${ t * 360 }deg);`;
+      }
+    };
+  }
+</script>
+
+{#each list as item (item.id)}
+  <div animate:whizz>{item}</div>
+{/each}
+```
+
+### Animation Function Signature
+
+```ts
+type AnimationFn = (
+  node: HTMLElement,
+  { from: DOMRect; to: DOMRect },
+  params: any
+) => AnimationConfig;
+```
+
+### Animation Configuration
+
+Your animation function should return an object with these properties:
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before the animation starts
+</ParamField>
+
+<ParamField path="duration" type="number" default="300">
+  Duration of the animation in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="(t: number) => number" default="linear">
+  An [easing function](/api/easing/overview) that transforms the animation timeline
+</ParamField>
+
+<ParamField path="css" type="(t: number, u: number) => string">
+  A function that returns CSS to apply at each frame. `t` is a value from 0-1 after easing is applied, `u` equals `1 - t`. If provided, Svelte creates a web animation that runs off the main thread for better performance.
+</ParamField>
+
+<ParamField path="tick" type="(t: number, u: number) => void">
+  A function called on each frame with `t` and `u` values. Use this when you need to imperatively update the DOM, but prefer `css` when possible as it performs better.
+</ParamField>
+
+## Position Information
+
+The animation function receives `from` and `to` parameters containing [DOMRect](https://developer.mozilla.org/en-US/docs/Web/API/DOMRect) objects:
+
+- `from` - The element's bounding rectangle before reordering
+- `to` - The element's bounding rectangle after reordering
+
+These provide properties like `left`, `top`, `width`, `height`, and more.
+
+## Animation Timeline
+
+The `t` and `u` parameters in `css` and `tick` functions represent the animation progress:
+
+- `t` - Progress from 0 to 1, with easing applied
+- `u` - Equals `1 - t`, useful for inverting values
+
+The function is called repeatedly before and during the animation with different values.
+
+## Using `css` vs `tick`
+
+Prefer the `css` option when possible:
+
+```svelte
+<script>
+  function slideAndFade(node, { from, to }, params) {
+    const dx = from.left - to.left;
+    
+    return {
+      duration: 300,
+      css: (t, u) => `
+        transform: translateX(${ u * dx }px);
+        opacity: ${ t };
+      `
+    };
+  }
+</script>
+```
+
+Use `tick` only when CSS animations aren't sufficient:
+
+```svelte
+<script>
+  function customAnimation(node, { from, to }, params) {
+    return {
+      duration: 300,
+      tick: (t, u) => {
+        // Imperative DOM updates
+        node.style.color = t > 0.5 ? 'blue' : 'red';
+      }
+    };
+  }
+</script>
+```
+
+<Note>
+Web animations created with `css` can run off the main thread, preventing jank on slower devices. Use `tick` only when necessary.
+</Note>
+
+## Complete Example
+
+Here's a sortable todo list with animations:
+
+```svelte
+<script>
+  import { flip } from 'svelte/animate';
+  import { fade } from 'svelte/transition';
+
+  let todos = [
+    { id: 1, done: false, text: 'Write docs' },
+    { id: 2, done: false, text: 'Build feature' },
+    { id: 3, done: true, text: 'Fix bug' },
+    { id: 4, done: false, text: 'Review PR' }
+  ];
+
+  function sort() {
+    todos = todos.sort((a, b) => a.done - b.done);
+  }
+
+  function remove(id) {
+    todos = todos.filter(t => t.id !== id);
+  }
+</script>
+
+<button on:click={sort}>Sort by status</button>
+
+<ul>
+  {#each todos as todo (todo.id)}
+    <li 
+      animate:flip={{ duration: 300 }}
+      out:fade={{ duration: 200 }}
+    >
+      <input type="checkbox" bind:checked={todo.done} />
+      <span>{todo.text}</span>
+      <button on:click={() => remove(todo.id)}>✕</button>
+    </li>
+  {/each}
+</ul>
+```
+
+## TypeScript
+
+```ts
+// Animation directive usage
+interface AnimationDirective {
+  (node: Element, fn: AnimationFn, params?: any): void;
+}
+
+// Animation function type
+type AnimationFn = (
+  node: HTMLElement,
+  positions: { from: DOMRect; to: DOMRect },
+  params: any
+) => AnimationConfig;
+
+// Return type
+interface AnimationConfig {
+  delay?: number;
+  duration?: number;
+  easing?: (t: number) => number;
+  css?: (t: number, u: number) => string;
+  tick?: (t: number, u: number) => void;
+}
+```

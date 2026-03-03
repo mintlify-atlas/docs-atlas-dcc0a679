@@ -1,0 +1,169 @@
+---
+title: $host
+description: Access the custom element host in Svelte with the $host rune
+---
+
+When compiling a component as a [custom element](https://svelte.dev/docs/svelte/custom-elements), the `$host` rune provides access to the host element, allowing you to (for example) dispatch custom events.
+
+<Note>
+This rune is only available inside custom element components, and only on the client-side.
+</Note>
+
+## Signature
+
+```ts
+function $host<El extends HTMLElement = HTMLElement>(): El;
+```
+
+Returns the custom element host instance. You can specify a type parameter to get better type safety:
+
+```ts
+const host = $host<HTMLDivElement>();
+```
+
+## Basic usage
+
+Here's an example of a stepper component that dispatches custom events:
+
+```svelte
+/// file: Stepper.svelte
+<svelte:options customElement="my-stepper" />
+
+<script>
+	function dispatch(type) {
+		$host().dispatchEvent(new CustomEvent(type));
+	}
+</script>
+
+<button onclick={() => dispatch('decrement')}>decrement</button>
+<button onclick={() => dispatch('increment')}>increment</button>
+```
+
+The parent component can then listen to these events:
+
+```svelte
+/// file: App.svelte
+<script>
+	import './Stepper.svelte';
+
+	let count = $state(0);
+</script>
+
+<my-stepper
+	ondecrement={() => count -= 1}
+	onincrement={() => count += 1}
+></my-stepper>
+
+<p>count: {count}</p>
+```
+
+## Dispatching events with detail
+
+You can include data in your custom events using the `detail` property:
+
+```svelte
+<svelte:options customElement="my-input" />
+
+<script>
+	let value = $state('');
+
+	function handleChange() {
+		$host().dispatchEvent(
+			new CustomEvent('change', { 
+				detail: { value } 
+			})
+		);
+	}
+</script>
+
+<input bind:value oninput={handleChange} />
+```
+
+## Accessing host attributes
+
+You can also use `$host()` to access attributes set on the custom element:
+
+```svelte
+<svelte:options customElement="my-element" />
+
+<script>
+	const host = $host();
+	const theme = host.getAttribute('theme') || 'light';
+</script>
+
+<div class={theme}>
+	<!-- component content -->
+</div>
+```
+
+## Use cases
+
+`$host` is particularly useful for:
+
+- Dispatching custom events from web components
+- Reading attributes from the host element
+- Calling methods on the host element
+- Integrating with web component lifecycle hooks
+- Communicating with non-Svelte code
+
+<Tabs>
+  <Tab title="Custom events">
+    ```svelte
+    <svelte:options customElement="color-picker" />
+
+    <script>
+    	let color = $state('#ff3e00');
+
+    	function emitChange() {
+    		$host().dispatchEvent(
+    			new CustomEvent('colorchange', {
+    				detail: { color },
+    				bubbles: true
+    			})
+    		);
+    	}
+    </script>
+
+    <input 
+    	type="color" 
+    	bind:value={color} 
+    	oninput={emitChange} 
+    />
+    ```
+  </Tab>
+  <Tab title="Reading attributes">
+    ```svelte
+    <svelte:options customElement="greeting-card" />
+
+    <script>
+    	const host = $host();
+    	const name = host.getAttribute('name') || 'World';
+    	const greeting = host.getAttribute('greeting') || 'Hello';
+    </script>
+
+    <h1>{greeting}, {name}!</h1>
+    ```
+  </Tab>
+  <Tab title="Lifecycle integration">
+    ```svelte
+    <svelte:options customElement="my-widget" />
+
+    <script>
+    	import { onMount } from 'svelte';
+
+    	onMount(() => {
+    		// Notify parent that component is ready
+    		$host().dispatchEvent(
+    			new CustomEvent('ready')
+    		);
+    	});
+    </script>
+
+    <div>Widget content</div>
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+Remember that `$host()` only works in components compiled with `customElement` option and only runs on the client-side.
+</Warning>

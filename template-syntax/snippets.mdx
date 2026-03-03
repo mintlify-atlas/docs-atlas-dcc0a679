@@ -1,0 +1,450 @@
+---
+title: Snippets
+description: Create reusable template chunks with {#snippet} in Svelte 5
+---
+
+Snippets are a way to create reusable chunks of markup inside your components. They're more powerful and flexible than Svelte 4's slots.
+
+## Basic Syntax
+
+```svelte
+{#snippet name()}...{/snippet}
+```
+
+With parameters:
+
+```svelte
+{#snippet name(param1, param2, paramN)}...{/snippet}
+```
+
+## Creating Snippets
+
+Define reusable markup to avoid duplication:
+
+```svelte
+{#snippet figure(image)}
+  <figure>
+    <img src={image.src} alt={image.caption} width={image.width} height={image.height} />
+    <figcaption>{image.caption}</figcaption>
+  </figure>
+{/snippet}
+
+{#each images as image}
+  {#if image.href}
+    <a href={image.href}>
+      {@render figure(image)}
+    </a>
+  {:else}
+    {@render figure(image)}
+  {/if}
+{/each}
+```
+
+## Rendering Snippets
+
+Use `{@render}` to render a snippet:
+
+```svelte
+{@render snippetName(arg1, arg2)}
+```
+
+## Snippet Parameters
+
+Snippets can have parameters with default values and destructuring:
+
+<CardGroup cols={2}>
+  <Card title="Default Values">
+    ```svelte
+    {#snippet greet(name = 'World')}
+      <p>Hello {name}!</p>
+    {/snippet}
+    
+    {@render greet()}
+    {@render greet('Alice')}
+    ```
+  </Card>
+  
+  <Card title="Destructuring">
+    ```svelte
+    {#snippet userCard({ name, email, avatar })}
+      <div class="card">
+        <img src={avatar} alt={name} />
+        <h3>{name}</h3>
+        <p>{email}</p>
+      </div>
+    {/snippet}
+    
+    {@render userCard(user)}
+    ```
+  </Card>
+</CardGroup>
+
+<Warning>
+  Snippets cannot use rest parameters (`...rest`). Each parameter must be explicitly named.
+</Warning>
+
+## Snippet Scope
+
+Snippets can reference values from their surrounding context:
+
+```svelte
+<script>
+  let { message = `it's great to see you!` } = $props();
+</script>
+
+{#snippet hello(name)}
+  <p>hello {name}! {message}!</p>
+{/snippet}
+
+{@render hello('alice')}
+{@render hello('bob')}
+```
+
+Snippets are visible to siblings and children:
+
+```svelte
+<div>
+  {#snippet x()}
+    {#snippet y()}...{/snippet}
+    
+    <!-- This works -->
+    {@render y()}
+  {/snippet}
+  
+  <!-- This errors - y is not in scope -->
+  {@render y()}
+</div>
+
+<!-- This also errors - x is not in scope -->
+{@render x()}
+```
+
+## Recursive Snippets
+
+Snippets can reference themselves:
+
+```svelte
+{#snippet countdown(n)}
+  {#if n > 0}
+    <span>{n}...</span>
+    {@render countdown(n - 1)}
+  {:else}
+    {@render blastoff()}
+  {/if}
+{/snippet}
+
+{#snippet blastoff()}
+  <span>🚀</span>
+{/snippet}
+
+{@render countdown(10)}
+```
+
+## Passing Snippets to Components
+
+### As Explicit Props
+
+Pass snippets like any other prop:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import Table from './Table.svelte';
+  
+  const fruits = [
+    { name: 'apples', qty: 5, price: 2 },
+    { name: 'bananas', qty: 10, price: 1 },
+    { name: 'cherries', qty: 20, price: 0.5 }
+  ];
+</script>
+
+{#snippet header()}
+  <th>fruit</th>
+  <th>qty</th>
+  <th>price</th>
+  <th>total</th>
+{/snippet}
+
+{#snippet row(d)}
+  <td>{d.name}</td>
+  <td>{d.qty}</td>
+  <td>{d.price}</td>
+  <td>{d.qty * d.price}</td>
+{/snippet}
+
+<Table data={fruits} {header} {row} />
+```
+
+### As Implicit Props
+
+Snippets declared inside component tags become props automatically:
+
+```svelte
+<!-- Semantically identical to above -->
+<Table data={fruits}>
+  {#snippet header()}
+    <th>fruit</th>
+    <th>qty</th>
+    <th>price</th>
+    <th>total</th>
+  {/snippet}
+  
+  {#snippet row(d)}
+    <td>{d.name}</td>
+    <td>{d.qty}</td>
+    <td>{d.price}</td>
+    <td>{d.qty * d.price}</td>
+  {/snippet}
+</Table>
+```
+
+### The Children Snippet
+
+Content that isn't a snippet declaration becomes the `children` snippet:
+
+```svelte
+<!-- App.svelte -->
+<Button>click me</Button>
+```
+
+```svelte
+<!-- Button.svelte -->
+<script>
+  let { children } = $props();
+</script>
+
+<button>{@render children()}</button>
+```
+
+<Warning>
+  Don't have a prop named `children` if your component also has content inside its tags.
+</Warning>
+
+## Optional Snippets
+
+Make snippets optional with optional chaining or if blocks:
+
+<CardGroup cols={2}>
+  <Card title="Optional Chaining">
+    ```svelte
+    <script>
+      let { children } = $props();
+    </script>
+    
+    {@render children?.()}
+    ```
+  </Card>
+  
+  <Card title="Fallback Content">
+    ```svelte
+    <script>
+      let { children } = $props();
+    </script>
+    
+    {#if children}
+      {@render children()}
+    {:else}
+      <p>Default content</p>
+    {/if}
+    ```
+  </Card>
+</CardGroup>
+
+## TypeScript Support
+
+Type snippets using the `Snippet` interface:
+
+```svelte
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  
+  interface Props {
+    data: any[];
+    children: Snippet;
+    row: Snippet<[any]>;
+  }
+  
+  let { data, children, row }: Props = $props();
+</script>
+```
+
+With generics for type safety:
+
+```svelte
+<script lang="ts" generics="T">
+  import type { Snippet } from 'svelte';
+  
+  let {
+    data,
+    children,
+    row
+  }: {
+    data: T[];
+    children: Snippet;
+    row: Snippet<[T]>;
+  } = $props();
+</script>
+```
+
+## Real-World Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Data Table" icon="table">
+    ```svelte
+    <!-- Table.svelte -->
+    <script>
+      let { data, header, row } = $props();
+    </script>
+    
+    <table>
+      <thead>
+        <tr>{@render header()}</tr>
+      </thead>
+      <tbody>
+        {#each data as item}
+          <tr>{@render row(item)}</tr>
+        {/each}
+      </tbody>
+    </table>
+    ```
+  </Card>
+  
+  <Card title="Card Layout" icon="layer-group">
+    ```svelte
+    <!-- Card.svelte -->
+    <script>
+      let { title, children, footer } = $props();
+    </script>
+    
+    <div class="card">
+      {#if title}
+        {@render title()}
+      {/if}
+      
+      <div class="body">
+        {@render children()}
+      </div>
+      
+      {#if footer}
+        <div class="footer">
+          {@render footer()}
+        </div>
+      {/if}
+    </div>
+    ```
+  </Card>
+  
+  <Card title="Modal Dialog" icon="window">
+    ```svelte
+    <!-- Modal.svelte -->
+    <script>
+      let { header, children, actions } = $props();
+      let { open = $bindable(false) } = $props();
+    </script>
+    
+    {#if open}
+      <div class="modal">
+        <div class="header">
+          {@render header()}
+        </div>
+        
+        <div class="content">
+          {@render children()}
+        </div>
+        
+        <div class="actions">
+          {@render actions?.()}
+        </div>
+      </div>
+    {/if}
+    ```
+  </Card>
+  
+  <Card title="List with Empty State" icon="list">
+    ```svelte
+    <!-- List.svelte -->
+    <script>
+      let { items, item, empty } = $props();
+    </script>
+    
+    {#if items.length > 0}
+      <ul>
+        {#each items as data}
+          <li>{@render item(data)}</li>
+        {/each}
+      </ul>
+    {:else if empty}
+      {@render empty()}
+    {:else}
+      <p>No items</p>
+    {/if}
+    ```
+  </Card>
+</CardGroup>
+
+## Exporting Snippets
+
+Export snippets from `<script module>` for use in other components:
+
+```svelte
+<!-- math-snippets.svelte -->
+<script module>
+  export { add, multiply };
+</script>
+
+{#snippet add(a, b)}
+  {a} + {b} = {a + b}
+{/snippet}
+
+{#snippet multiply(a, b)}
+  {a} × {b} = {a * b}
+{/snippet}
+```
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { add, multiply } from './math-snippets.svelte';
+</script>
+
+{@render add(5, 3)}
+{@render multiply(4, 7)}
+```
+
+<Warning>
+  Snippet exports require Svelte 5.5.0 or newer. Exported snippets cannot reference non-module `<script>` declarations.
+</Warning>
+
+## Migration from Slots
+
+Snippets replace Svelte 4 slots:
+
+<CodeGroup>
+```svelte Svelte 4 (Slots)
+<!-- Button.svelte -->
+<button>
+  <slot />
+</button>
+
+<!-- App.svelte -->
+<Button>
+  Click me
+</Button>
+```
+
+```svelte Svelte 5 (Snippets)
+<!-- Button.svelte -->
+<script>
+  let { children } = $props();
+</script>
+
+<button>
+  {@render children()}
+</button>
+
+<!-- App.svelte -->
+<Button>
+  Click me
+</Button>
+```
+</CodeGroup>

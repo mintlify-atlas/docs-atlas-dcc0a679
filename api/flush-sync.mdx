@@ -1,0 +1,185 @@
+---
+title: flushSync()
+description: Synchronously flush any pending state updates
+---
+
+Synchronously flush any pending state updates and their effects. If a callback function is provided, it will be called first, and then all resulting updates will be flushed synchronously.
+
+```ts
+function flushSync<T>(fn?: () => T): T
+```
+
+## Parameters
+
+<ParamField path="fn" type="() => T">
+  Optional callback function to execute before flushing. Any state changes made in this function will be flushed synchronously before `flushSync` returns
+</ParamField>
+
+## Returns
+
+<ResponseField name="result" type="T | void">
+  If a callback is provided, returns the result of calling the callback. Otherwise returns `void`
+</ResponseField>
+
+## Examples
+
+### Basic synchronous updates
+
+```svelte
+<script>
+  import { flushSync } from 'svelte';
+
+  let count = $state(0);
+
+  function increment() {
+    flushSync(() => {
+      count++;
+    });
+    // DOM is guaranteed to be updated here
+    console.log('Count in DOM:', document.getElementById('count').textContent);
+  }
+</script>
+
+<p id="count">{count}</p>
+<button onclick={increment}>Increment</button>
+```
+
+### Measuring DOM after update
+
+```svelte
+<script>
+  import { flushSync } from 'svelte';
+
+  let items = $state([1, 2, 3]);
+  let listHeight = $state(0);
+
+  function addItem() {
+    flushSync(() => {
+      items.push(items.length + 1);
+    });
+    
+    // Measure the new height immediately after update
+    const list = document.getElementById('list');
+    listHeight = list.offsetHeight;
+  }
+</script>
+
+<ul id="list">
+  {#each items as item}
+    <li>{item}</li>
+  {/each}
+</ul>
+<button onclick={addItem}>Add item</button>
+<p>List height: {listHeight}px</p>
+```
+
+### Focusing elements after render
+
+```svelte
+<script>
+  import { flushSync } from 'svelte';
+
+  let showInput = $state(false);
+
+  function reveal() {
+    flushSync(() => {
+      showInput = true;
+    });
+    
+    // Input is now in the DOM and can be focused
+    document.getElementById('username').focus();
+  }
+</script>
+
+<button onclick={reveal}>Show input</button>
+{#if showInput}
+  <input id="username" type="text" />
+{/if}
+```
+
+### Synchronizing with external libraries
+
+```svelte
+<script>
+  import { flushSync } from 'svelte';
+  import { initializeChart } from './chart-library';
+
+  let data = $state([1, 2, 3, 4, 5]);
+  let chartContainer;
+
+  function updateChart() {
+    flushSync(() => {
+      data = data.map(x => x * 2);
+    });
+    
+    // DOM is updated, safe to reinitialize chart
+    initializeChart(chartContainer, data);
+  }
+</script>
+
+<div bind:this={chartContainer}></div>
+<button onclick={updateChart}>Update chart</button>
+```
+
+### Sequential updates
+
+```svelte
+<script>
+  import { flushSync } from 'svelte';
+
+  let step = $state(1);
+
+  function runSteps() {
+    flushSync(() => step = 1);
+    console.log('Step 1 rendered');
+    
+    flushSync(() => step = 2);
+    console.log('Step 2 rendered');
+    
+    flushSync(() => step = 3);
+    console.log('Step 3 rendered');
+  }
+</script>
+
+<p>Current step: {step}</p>
+<button onclick={runSteps}>Run all steps</button>
+```
+
+### Without callback
+
+```js
+import { flushSync } from 'svelte';
+
+let count = $state(0);
+
+// Update state
+count++;
+
+// Flush all pending updates
+flushSync();
+
+// DOM is now updated
+console.log('Updated!');
+```
+
+## Use cases
+
+- **DOM measurements**: When you need to measure element dimensions immediately after a state change
+- **Focus management**: Setting focus on elements that are conditionally rendered
+- **Third-party integrations**: Synchronizing Svelte state updates with external libraries that expect synchronous DOM updates
+- **Testing**: Ensuring state updates complete before assertions run
+- **Animations**: Starting animations that depend on the final rendered state
+
+## Performance considerations
+
+- `flushSync()` is synchronous and can block the main thread if there are many updates
+- Use sparingly, as it bypasses Svelte's optimized batching of updates
+- In most cases, `tick()` is preferred for waiting on asynchronous updates
+- Multiple rapid calls to `flushSync()` can hurt performance
+
+## Notes
+
+- Unlike `tick()`, which returns a Promise, `flushSync()` is completely synchronous
+- All effects and DOM updates are guaranteed to complete before `flushSync()` returns
+- If called without a callback, it flushes any pending updates that were scheduled before the call
+- This is useful when you need immediate DOM updates, but should be used judiciously

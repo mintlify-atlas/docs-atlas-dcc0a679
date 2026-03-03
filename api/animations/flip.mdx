@@ -1,0 +1,132 @@
+---
+title: flip
+description: Animate element position changes using the FLIP technique for smooth list reordering
+---
+
+The `flip` function creates smooth animations when elements change position in a list. It implements the FLIP (First, Last, Invert, Play) technique to efficiently animate layout changes.
+
+```svelte
+import { flip } from 'svelte/animate';
+```
+
+## Usage
+
+The `flip` animation is used with the `animate:` directive on elements inside a keyed each block. When the list is reordered, elements smoothly transition to their new positions.
+
+```svelte
+<script>
+  import { flip } from 'svelte/animate';
+
+  let todos = [
+    { id: 1, text: 'Write documentation' },
+    { id: 2, text: 'Review pull requests' },
+    { id: 3, text: 'Fix bugs' }
+  ];
+
+  function shuffle() {
+    todos = todos.sort(() => Math.random() - 0.5);
+  }
+</script>
+
+<button on:click={shuffle}>Shuffle</button>
+
+{#each todos as todo (todo.id)}
+  <div animate:flip>
+    {todo.text}
+  </div>
+{/each}
+```
+
+## Parameters
+
+You can customize the animation by passing parameters:
+
+```svelte
+{#each items as item (item.id)}
+  <div animate:flip={{ delay: 250, duration: 300 }}>
+    {item.name}
+  </div>
+{/each}
+```
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before the animation starts
+</ParamField>
+
+<ParamField path="duration" type="number | ((len: number) => number)" default="(d) => Math.sqrt(d) * 120">
+  Either a number of milliseconds, or a function that receives the distance (in pixels) the element will travel and returns the duration in milliseconds. The default function creates animations that feel natural regardless of distance traveled.
+</ParamField>
+
+<ParamField path="easing" type="(t: number) => number" default="cubicOut">
+  An [easing function](/api/easing/overview) that controls the animation's rate of change over time
+</ParamField>
+
+## How FLIP Works
+
+FLIP is a performance technique that creates smooth animations by:
+
+1. **First**: Capture the initial position of the element
+2. **Last**: Capture the final position after the DOM updates
+3. **Invert**: Calculate the difference and apply a transform to make the element appear in its starting position
+4. **Play**: Animate from the inverted state back to the natural position
+
+This approach allows animations to use transforms (which are GPU-accelerated) instead of animating layout properties.
+
+## Implementation Details
+
+The `flip` function:
+
+- Calculates the translation needed based on the element's starting and ending positions
+- Accounts for scale changes if the element's size changes
+- Respects the element's `transform-origin`
+- Handles parent transforms and CSS zoom correctly
+- Returns an animation configuration with CSS transforms
+
+Reference: [svelte/src/animate/index.js:13](~/workspace/source/packages/svelte/src/animate/index.js:13)
+
+## With Transitions
+
+Animations work alongside transitions. Elements that are added use intro transitions, removed elements use outro transitions, and reordered elements use animations:
+
+```svelte
+<script>
+  import { flip } from 'svelte/animate';
+  import { fade } from 'svelte/transition';
+
+  let items = [1, 2, 3, 4, 5];
+</script>
+
+{#each items as item (item)}
+  <div 
+    animate:flip={{ duration: 300 }}
+    in:fade={{ duration: 200 }}
+    out:fade={{ duration: 200 }}
+  >
+    {item}
+  </div>
+{/each}
+```
+
+## TypeScript
+
+```ts
+function flip(
+  node: Element,
+  { from, to }: { from: DOMRect; to: DOMRect },
+  params?: FlipParams
+): AnimationConfig;
+
+interface FlipParams {
+  delay?: number;
+  duration?: number | ((len: number) => number);
+  easing?: (t: number) => number;
+}
+
+interface AnimationConfig {
+  delay?: number;
+  duration?: number;
+  easing?: (t: number) => number;
+  css?: (t: number, u: number) => string;
+  tick?: (t: number, u: number) => void;
+}
+```

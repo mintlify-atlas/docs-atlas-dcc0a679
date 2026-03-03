@@ -1,0 +1,137 @@
+---
+title: hydrate()
+description: Hydrates a server-rendered component
+---
+
+Hydrates a component on the given target and returns the component exports. Use this when you have server-rendered HTML that you want to make interactive.
+
+```ts
+function hydrate<Props, Exports>(
+  component: Component<Props, Exports>,
+  options: HydrateOptions<Props>
+): Exports
+```
+
+## Parameters
+
+<ParamField path="component" type="Component<Props, Exports>" required>
+  The Svelte component to hydrate
+</ParamField>
+
+<ParamField path="options" type="HydrateOptions<Props>" required>
+  Configuration options for hydrating the component
+
+  <ParamField path="target" type="Document | Element | ShadowRoot" required>
+    Target element containing the server-rendered HTML
+  </ParamField>
+
+  <ParamField path="props" type="Props">
+    Component properties. Required if the component expects props
+  </ParamField>
+
+  <ParamField path="intro" type="boolean" default="false">
+    Whether or not to play transitions on initial hydration. Defaults to `false` (unlike `mount()`)
+  </ParamField>
+
+  <ParamField path="context" type="Map<any, any>">
+    Can be accessed via `getContext()` at the component level
+  </ParamField>
+
+  <ParamField path="events" type="Record<string, (e: any) => any>" deprecated>
+    Allows the specification of events. Use callback props instead
+  </ParamField>
+
+  <ParamField path="recover" type="boolean" default="true">
+    If `false`, throws an error when hydration fails instead of falling back to client-side rendering
+  </ParamField>
+
+  <ParamField path="transformError" type="(error: unknown) => unknown | Promise<unknown>">
+    A function that transforms errors caught by error boundaries before they are passed to the `failed` snippet. Defaults to the identity function
+  </ParamField>
+</ParamField>
+
+## Returns
+
+<ResponseField name="exports" type="Exports">
+  The component's exports (and potentially the props if compiled with `accessors: true`)
+</ResponseField>
+
+## Examples
+
+### Basic hydration
+
+```js
+import { hydrate } from 'svelte';
+import App from './App.svelte';
+
+// Hydrate server-rendered content
+const app = hydrate(App, {
+  target: document.getElementById('app'),
+  props: {
+    initialData: window.__INITIAL_DATA__
+  }
+});
+```
+
+### Hydration with intro transitions
+
+```js
+import { hydrate } from 'svelte';
+import Page from './Page.svelte';
+
+// Play intro transitions during hydration
+const page = hydrate(Page, {
+  target: document.body,
+  intro: true,
+  props: {
+    pageData: window.__PAGE_DATA__
+  }
+});
+```
+
+### Strict hydration mode
+
+```js
+import { hydrate } from 'svelte';
+import App from './App.svelte';
+
+// Throw error on hydration mismatch instead of recovering
+try {
+  const app = hydrate(App, {
+    target: document.body,
+    recover: false
+  });
+} catch (error) {
+  console.error('Hydration failed:', error);
+  // Handle hydration error
+}
+```
+
+### With context
+
+```js
+import { hydrate } from 'svelte';
+import App from './App.svelte';
+
+const context = new Map();
+context.set('apiUrl', window.__API_URL__);
+
+const app = hydrate(App, {
+  target: document.getElementById('root'),
+  context: context
+});
+```
+
+## Hydration behavior
+
+- By default, `hydrate()` looks for a comment node `<!--ssr:start-->` in the target element to know where to begin hydration
+- If hydration fails (e.g., due to a mismatch between server and client output), Svelte will log a warning and fall back to client-side rendering (unless `recover: false` is set)
+- Unlike `mount()`, the default value for `intro` is `false` to avoid playing transitions on already-rendered content
+- The target element should contain the HTML that was rendered on the server
+
+## Notes
+
+- Server-side rendering must produce hydration markers for `hydrate()` to work correctly
+- Hydration mismatches can occur if the component's initial state differs between server and client
+- For optimal performance, ensure props passed during hydration match those used during server-side rendering
+- See the [server-side rendering guide](https://svelte.dev/docs/svelte/svelte-server#render) for more information

@@ -1,0 +1,82 @@
+---
+title: draw
+description: API reference for the draw transition in Svelte for SVG paths
+---
+
+Animates the stroke of an SVG element, like drawing a line. `in` transitions begin with the path invisible and draw the path to the screen over time. `out` transitions start in a visible state and gradually erase the path.
+
+The `draw` transition only works with elements that have a `getTotalLength` method, such as `<path>` and `<polyline>`.
+
+## Usage
+
+```svelte
+<script>
+	import { draw } from 'svelte/transition';
+</script>
+
+<svg>
+	<path transition:draw d="M0,0 L100,100" stroke="black" />
+</svg>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number | function">
+  Duration of the transition in milliseconds, or a function that takes the path length and returns a duration. If neither `duration` nor `speed` is specified, defaults to 800ms
+</ParamField>
+
+<ParamField path="speed" type="number">
+  The speed of the animation in pixels per millisecond. If specified, the duration will be calculated as `length / speed`. Cannot be used together with `duration`
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicInOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { draw } from 'svelte/transition';
+	import { linear } from 'svelte/easing';
+</script>
+
+<svg viewBox="0 0 100 100">
+	<path
+		transition:draw={{ duration: 2000, easing: linear }}
+		d="M10,10 Q50,90 90,10"
+		stroke="blue"
+		stroke-width="2"
+		fill="none"
+	/>
+</svg>
+
+<svg viewBox="0 0 200 200">
+	<!-- Duration based on path length -->
+	<polyline
+		in:draw={{ speed: 0.5 }}
+		points="10,10 100,50 190,10"
+		stroke="red"
+		stroke-width="3"
+		fill="none"
+	/>
+</svg>
+
+<svg viewBox="0 0 100 100">
+	<!-- Dynamic duration based on path length -->
+	<path
+		in:draw={{ duration: (len) => len * 2 }}
+		d="M10,50 L90,50"
+		stroke="green"
+		stroke-width="4"
+	/>
+</svg>
+```
+
+## Notes
+
+The animation uses the SVG `stroke-dasharray` and `stroke-dashoffset` properties to create the drawing effect. If the element has `stroke-linecap` set to anything other than `butt`, the stroke width is added to the path length to ensure smooth animation.

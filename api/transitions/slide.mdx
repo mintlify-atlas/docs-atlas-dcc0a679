@@ -1,0 +1,59 @@
+---
+title: slide
+description: API reference for the slide transition in Svelte
+---
+
+Slides an element in and out by animating its height (or width) along with padding, margin, and border properties. The element appears to expand or collapse smoothly.
+
+## Usage
+
+```svelte
+<script>
+	import { slide } from 'svelte/transition';
+</script>
+
+<div transition:slide>slides in and out</div>
+
+<div in:slide>slides in</div>
+
+<div out:slide>slides out</div>
+```
+
+## Parameters
+
+<ParamField path="delay" type="number" default="0">
+  Milliseconds before starting the transition
+</ParamField>
+
+<ParamField path="duration" type="number" default="400">
+  Duration of the transition in milliseconds
+</ParamField>
+
+<ParamField path="easing" type="function" default="cubicOut">
+  An [easing function](/api/easing/overview) that controls the animation curve
+</ParamField>
+
+<ParamField path="axis" type="'x' | 'y'" default="'y'">
+  The axis along which to slide. Use `'y'` for vertical sliding (height) or `'x'` for horizontal sliding (width)
+</ParamField>
+
+## Example with parameters
+
+```svelte
+<script>
+	import { slide } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
+</script>
+
+<div transition:slide={{ duration: 600, easing: quintOut }}>
+	slides vertically
+</div>
+
+<div transition:slide={{ axis: 'x' }}>
+	slides horizontally
+</div>
+```
+
+## Notes
+
+The `slide` transition works best with elements that have a default `display` value of `block`, `inline-block`, `flex`, or `grid`. It may not work correctly with elements that have `display: contents`, `display: inline`, or `display: table`.

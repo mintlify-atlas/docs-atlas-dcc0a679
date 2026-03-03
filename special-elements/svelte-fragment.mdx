@@ -1,0 +1,153 @@
+---
+title: '<svelte:fragment>'
+description: 'Place content in named slots without a wrapper element (legacy)'
+---
+
+```svelte
+<svelte:fragment slot="name">...</svelte:fragment>
+```
+
+<Note>
+In Svelte 5+, this concept is obsolete. Snippets don't create a wrapping element, so `<svelte:fragment>` is no longer necessary.
+</Note>
+
+The `<svelte:fragment>` element allows you to place content in a named slot without wrapping it in a container DOM element. This keeps the flow layout of your document intact.
+
+## Attributes
+
+<ParamField path="slot" type="string" required>
+  The name of the slot to place this fragment's content into.
+</ParamField>
+
+<ParamField path="let:*" type="any">
+  Optional let directives to receive slot props from the component.
+</ParamField>
+
+## Usage
+
+### Basic named slot without wrapper
+
+```svelte
+<!--- file: Widget.svelte --->
+<div>
+  <slot name="header">No header was provided</slot>
+  <p>Some content between header and footer</p>
+  <slot name="footer" />
+</div>
+```
+
+```svelte
+<!--- file: App.svelte --->
+<script>
+  import Widget from './Widget.svelte';
+</script>
+
+<Widget>
+  <h1 slot="header">Hello</h1>
+  <svelte:fragment slot="footer">
+    <p>All rights reserved.</p>
+    <p>Copyright (c) 2019 Svelte Industries</p>
+  </svelte:fragment>
+</Widget>
+```
+
+### Why use svelte:fragment?
+
+Without `<svelte:fragment>`, you'd need to wrap the content in an element:
+
+```svelte
+<!-- Using a wrapper div -->
+<Widget>
+  <h1 slot="header">Hello</h1>
+  <div slot="footer">
+    <p>All rights reserved.</p>
+    <p>Copyright (c) 2019 Svelte Industries</p>
+  </div>
+</Widget>
+```
+
+The extra `<div>` might interfere with your layout or styling. `<svelte:fragment>` solves this:
+
+```svelte
+<!-- No wrapper needed -->
+<Widget>
+  <h1 slot="header">Hello</h1>
+  <svelte:fragment slot="footer">
+    <p>All rights reserved.</p>
+    <p>Copyright (c) 2019 Svelte Industries</p>
+  </svelte:fragment>
+</Widget>
+```
+
+### With slot props
+
+```svelte
+<!--- file: List.svelte --->
+<ul>
+  {#each items as item}
+    <li>
+      <slot name="item" {item} />
+    </li>
+  {/each}
+</ul>
+```
+
+```svelte
+<!--- file: App.svelte --->
+<script>
+  import List from './List.svelte';
+  let items = [1, 2, 3];
+</script>
+
+<List {items}>
+  <svelte:fragment slot="item" let:item>
+    <strong>Item:</strong>
+    <span>{item}</span>
+  </svelte:fragment>
+</List>
+```
+
+## Migration to Svelte 5
+
+In Svelte 5, use snippets instead of slots. Snippets don't create wrapper elements, making `<svelte:fragment>` unnecessary:
+
+```svelte
+<!--- file: Widget.svelte (Svelte 5) --->
+<script>
+  let { header, footer } = $props();
+</script>
+
+<div>
+  {@render header?.()}
+  <p>Some content between header and footer</p>
+  {@render footer?.()}
+</div>
+```
+
+```svelte
+<!--- file: App.svelte (Svelte 5) --->
+<script>
+  import Widget from './Widget.svelte';
+</script>
+
+<Widget>
+  {#snippet header()}
+    <h1>Hello</h1>
+  {/snippet}
+  
+  {#snippet footer()}
+    <p>All rights reserved.</p>
+    <p>Copyright (c) 2019 Svelte Industries</p>
+  {/snippet}
+</Widget>
+```
+
+## Important Notes
+
+<Warning>
+`<svelte:fragment>` must be the direct child of a component. It cannot be used in other contexts.
+</Warning>
+
+<Warning>
+`<svelte:fragment>` can only have a `slot` attribute and (optionally) `let:` directives. No other attributes or directives are allowed.
+</Warning>

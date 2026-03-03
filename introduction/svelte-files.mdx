@@ -1,0 +1,347 @@
+---
+title: Svelte files
+description: Understanding the structure of .svelte component files with script, markup, and style sections
+---
+
+Components are the building blocks of Svelte applications. They're written in `.svelte` files using a superset of HTML that combines JavaScript logic, HTML markup, and CSS styles in a single file.
+
+## Component structure
+
+A Svelte component consists of up to three sections — all of which are optional:
+
+```svelte MyComponent.svelte
+<script module>
+	// Module-level logic (rarely used)
+</script>
+
+<script>
+	// Component instance logic
+</script>
+
+<!-- Markup goes here -->
+
+<style>
+	/* Scoped styles */
+</style>
+```
+
+You can have a component with just markup, just a script, or any combination. Svelte is flexible.
+
+## The `<script>` block
+
+The `<script>` block contains JavaScript (or TypeScript with `lang="ts"`) that runs when a component instance is created. Variables declared or imported at the top level are automatically available in the component's markup.
+
+### Basic example
+
+```svelte Button.svelte
+<script>
+	let count = $state(0);
+
+	function increment() {
+		count++;
+	}
+</script>
+
+<button onclick={increment}>
+	Clicked {count} {count === 1 ? 'time' : 'times'}
+</button>
+```
+
+In this example:
+- `count` is reactive state created with the `$state` rune
+- `increment` is a function that modifies the state
+- Both are accessible in the markup below
+
+### TypeScript support
+
+Add the `lang="ts"` attribute to use TypeScript:
+
+```svelte Todo.svelte
+<script lang="ts">
+	interface Todo {
+		id: number;
+		text: string;
+		done: boolean;
+	}
+
+	let todos: Todo[] = $state([
+		{ id: 1, done: false, text: 'Learn Svelte' },
+		{ id: 2, done: false, text: 'Build an app' }
+	]);
+</script>
+
+{#each todos as todo}
+	<div>
+		<input type="checkbox" bind:checked={todo.done} />
+		{todo.text}
+	</div>
+{/each}
+```
+
+### Reactivity with runes
+
+Svelte's reactivity system is powered by **runes** — special function-like constructs that the compiler understands:
+
+<CardGroup cols={2}>
+  <Card title="$state" icon="database">
+    Creates reactive state that triggers UI updates when changed
+  </Card>
+  <Card title="$derived" icon="arrows-split-up-and-left">
+    Computes values that automatically update when dependencies change
+  </Card>
+  <Card title="$effect" icon="bolt">
+    Runs side effects when reactive dependencies change
+  </Card>
+  <Card title="$props" icon="input-pipe">
+    Declares component properties passed from parent components
+  </Card>
+</CardGroup>
+
+Example using multiple runes:
+
+```svelte Calculator.svelte
+<script>
+	let count = $state(0);
+	let doubled = $derived(count * 2);
+
+	$effect(() => {
+		console.log(`Count is ${count}, doubled is ${doubled}`);
+	});
+</script>
+
+<p>{count} × 2 = {doubled}</p>
+<button onclick={() => count++}>Increment</button>
+```
+
+## The `<script module>` block
+
+A `<script>` tag with a `module` attribute runs once when the module first evaluates, rather than for each component instance. This is useful for:
+
+- Shared constants
+- Utility functions
+- Module-level state shared across all instances
+
+```svelte Component.svelte
+<script module>
+	let total = 0;
+</script>
+
+<script>
+	total += 1;
+	console.log(`Instantiated ${total} times`);
+</script>
+```
+
+Each time this component is created, `total` increments and is shared across all instances.
+
+### Exporting from module blocks
+
+You can export bindings from `<script module>` blocks, and they become exports of the compiled module:
+
+```svelte utils.svelte
+<script module>
+	export function formatDate(date) {
+		return new Intl.DateTimeFormat('en-US').format(date);
+	}
+
+	export const API_URL = 'https://api.example.com';
+</script>
+```
+
+Other files can import these:
+
+```javascript
+import { formatDate, API_URL } from './utils.svelte';
+```
+
+<Warning>
+  You cannot `export default` from a module block — the default export is always the component itself.
+</Warning>
+
+<Note>
+  **Legacy note:** In Svelte 4, module scripts used `<script context="module">`. Svelte 5 uses the simpler `<script module>` syntax.
+</Note>
+
+## Markup
+
+Markup in Svelte components is HTML enhanced with special syntax for:
+
+- **Template expressions**: `{value}`
+- **Control flow**: `{#if}`, `{#each}`, `{#await}`
+- **Event handlers**: `onclick={handler}`
+- **Bindings**: `bind:value={variable}`
+- **Directives**: `use:action`, `transition:fade`
+
+### Example with template features
+
+```svelte UserList.svelte
+<script>
+	let users = $state([
+		{ id: 1, name: 'Alice', active: true },
+		{ id: 2, name: 'Bob', active: false },
+		{ id: 3, name: 'Charlie', active: true }
+	]);
+
+	let showInactive = $state(false);
+</script>
+
+<label>
+	<input type="checkbox" bind:checked={showInactive} />
+	Show inactive users
+</label>
+
+<ul>
+	{#each users as user}
+		{#if user.active || showInactive}
+			<li class:inactive={!user.active}>
+				{user.name}
+			</li>
+		{/if}
+	{/each}
+</ul>
+```
+
+This demonstrates:
+- Two-way binding with `bind:checked`
+- Conditional rendering with `{#if}`
+- List rendering with `{#each}`
+- Class toggling with `class:inactive`
+
+## The `<style>` block
+
+CSS inside a `<style>` block is automatically scoped to the component. Svelte adds unique identifiers to elements and styles, ensuring they don't leak to other components.
+
+### Scoped styles example
+
+```svelte Card.svelte
+<script>
+	let { title, description } = $props();
+</script>
+
+<div class="card">
+	<h2>{title}</h2>
+	<p>{description}</p>
+</div>
+
+<style>
+	.card {
+		padding: 1rem;
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		background: white;
+	}
+
+	h2 {
+		/* This only affects <h2> elements in this component */
+		margin: 0 0 0.5rem 0;
+		color: #333;
+	}
+
+	p {
+		/* This only affects <p> elements in this component */
+		margin: 0;
+		color: #666;
+	}
+</style>
+```
+
+The selectors `.card`, `h2`, and `p` only apply to elements within this component instance. Other components can use the same class names and element selectors without conflicts.
+
+### Global styles
+
+If you need to apply styles globally, use the `:global()` modifier:
+
+```svelte
+<style>
+	/* Scoped to this component */
+	.button {
+		padding: 8px 16px;
+	}
+
+	/* Global - affects all <a> tags */
+	:global(a) {
+		color: blue;
+		text-decoration: none;
+	}
+
+	/* Scoped parent with global child */
+	.container :global(code) {
+		background: #f4f4f4;
+		padding: 2px 6px;
+	}
+</style>
+```
+
+## Complete example
+
+Here's a complete component that demonstrates all three sections working together:
+
+```svelte TodoItem.svelte
+<script>
+	let { todo, onToggle, onDelete } = $props();
+</script>
+
+<div class="todo-item" class:completed={todo.done}>
+	<input
+		type="checkbox"
+		checked={todo.done}
+		onchange={() => onToggle(todo.id)}
+	/>
+	<span class="text">{todo.text}</span>
+	<button onclick={() => onDelete(todo.id)}>Delete</button>
+</div>
+
+<style>
+	.todo-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px;
+		border-bottom: 1px solid #eee;
+	}
+
+	.todo-item.completed .text {
+		text-decoration: line-through;
+		opacity: 0.6;
+	}
+
+	button {
+		margin-left: auto;
+		background: #ff4444;
+		color: white;
+		border: none;
+		padding: 4px 12px;
+		border-radius: 4px;
+		cursor: pointer;
+	}
+
+	button:hover {
+		background: #cc0000;
+	}
+</style>
+```
+
+## Key takeaways
+
+- **All sections are optional** — use only what you need
+- **Script runs per instance** — fresh state for each component
+- **Script module runs once** — shared across all instances
+- **Styles are scoped** — no CSS conflicts between components
+- **Markup is enhanced HTML** — with powerful template features
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Runes" icon="wand-magic-sparkles" href="/runes/overview">
+    Learn about Svelte's reactivity system in depth
+  </Card>
+  <Card title="Template syntax" icon="code" href="/template-syntax/basic-markup">
+    Explore control flow, bindings, and directives
+  </Card>
+  <Card title="Component communication" icon="arrows-left-right" href="/components/props-and-state">
+    Pass data between parent and child components
+  </Card>
+  <Card title="Styling" icon="paintbrush" href="/styling/component-styles">
+    Advanced styling techniques and patterns
+  </Card>
+</CardGroup>

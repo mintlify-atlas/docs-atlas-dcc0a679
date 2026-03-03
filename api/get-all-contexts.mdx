@@ -1,0 +1,146 @@
+---
+title: getAllContexts()
+description: Retrieve the whole context map that belongs to the closest parent component.
+---
+
+Retrieves the whole context map that belongs to the closest parent component. Must be called during component initialisation. 
+
+Useful, for example, if you programmatically create a component and want to pass the existing context to it.
+
+## Signature
+
+```ts
+function getAllContexts<T extends Map<any, any> = Map<any, any>>(): T
+```
+
+## Returns
+
+<ResponseField name="contextMap" type="Map<any, any>">
+  Returns a `Map` containing all context key-value pairs from the parent component.
+</ResponseField>
+
+## Example
+
+### Programmatic Component Creation
+
+```svelte
+<!-- ComponentWrapper.svelte -->
+<script>
+  import { getAllContexts, mount } from 'svelte';
+  import DynamicComponent from './DynamicComponent.svelte';
+
+  let container = $state();
+
+  // Get all contexts from current component tree
+  const contexts = getAllContexts();
+
+  $effect(() => {
+    if (container) {
+      // Mount component programmatically with inherited contexts
+      const instance = mount(DynamicComponent, {
+        target: container,
+        context: contexts,
+        props: { message: 'Hello' }
+      });
+
+      return () => {
+        instance.unmount();
+      };
+    }
+  });
+</script>
+
+<div bind:this={container}></div>
+```
+
+### Parent Component Setting Multiple Contexts
+
+```svelte
+<!-- Parent.svelte -->
+<script>
+  import { setContext } from 'svelte';
+  import ComponentWrapper from './ComponentWrapper.svelte';
+
+  setContext('theme', { color: 'blue', mode: 'dark' });
+  setContext('user', { name: 'Alice', id: 123 });
+  setContext('api', { baseUrl: 'https://api.example.com' });
+</script>
+
+<ComponentWrapper />
+```
+
+### Dynamic Component Using Contexts
+
+```svelte
+<!-- DynamicComponent.svelte -->
+<script>
+  import { getContext } from 'svelte';
+
+  let { message } = $props();
+
+  // Can access all contexts that were passed through getAllContexts
+  const theme = getContext('theme');
+  const user = getContext('user');
+  const api = getContext('api');
+</script>
+
+<div style="color: {theme.color}">
+  <p>{message}</p>
+  <p>User: {user.name}</p>
+  <p>API: {api.baseUrl}</p>
+</div>
+```
+
+## Portal/Teleport Pattern
+
+```svelte
+<script>
+  import { getAllContexts, mount } from 'svelte';
+  import ModalContent from './ModalContent.svelte';
+
+  let { isOpen, children } = $props();
+  
+  const contexts = getAllContexts();
+
+  $effect(() => {
+    if (isOpen) {
+      const portal = document.getElementById('modal-root');
+      
+      const instance = mount(ModalContent, {
+        target: portal,
+        context: contexts,
+        props: { children }
+      });
+
+      return () => instance.unmount();
+    }
+  });
+</script>
+```
+
+## Context Cloning Pattern
+
+```svelte
+<script>
+  import { getAllContexts, setContext } from 'svelte';
+
+  // Get all parent contexts
+  const parentContexts = getAllContexts();
+
+  // Clone and extend contexts
+  for (const [key, value] of parentContexts) {
+    setContext(key, value);
+  }
+
+  // Add additional context
+  setContext('local', { data: 'specific to this component' });
+</script>
+```
+
+## Notes
+
+- Must be called during component initialisation (not in callbacks or effects)
+- Returns a `Map` object containing all context entries from parent components
+- Primarily useful for programmatic component creation with `mount()`
+- The returned map includes all contexts from the component tree above the current component
+- Modifying the returned map does not affect the parent's context

@@ -1,0 +1,465 @@
+---
+title: Slots and Content Projection
+description: Passing and rendering content in Svelte components using snippets and slots
+---
+
+Snippets are Svelte 5's way to create reusable chunks of markup and pass content between components. They replace the legacy `<slot>` syntax with a more powerful and flexible system.
+
+## Snippets: The Basics
+
+Snippets let you define reusable markup chunks:
+
+```svelte
+{#snippet figure(image)}
+  <figure>
+    <img src={image.src} alt={image.caption} />
+    <figcaption>{image.caption}</figcaption>
+  </figure>
+{/snippet}
+
+{#each images as image}
+  {#if image.href}
+    <a href={image.href}>
+      {@render figure(image)}
+    </a>
+  {:else}
+    {@render figure(image)}
+  {/if}
+{/each}
+```
+
+<Steps>
+
+### Declaring Snippets
+
+Snippets can have parameters with default values:
+
+```svelte
+{#snippet greeting(name = 'world')}
+  <p>Hello {name}!</p>
+{/snippet}
+
+{@render greeting()}
+{@render greeting('Alice')}
+```
+
+### Rendering Snippets
+
+Use the `@render` tag to render snippets:
+
+```svelte
+{#snippet card(title, description)}
+  <div class="card">
+    <h2>{title}</h2>
+    <p>{description}</p>
+  </div>
+{/snippet}
+
+{@render card('Welcome', 'This is a card component')}
+```
+
+### Snippet Scope
+
+Snippets can reference values from outer scopes:
+
+```svelte
+<script>
+  let { message = "it's great to see you!" } = $props();
+</script>
+
+{#snippet hello(name)}
+  <p>hello {name}! {message}!</p>
+{/snippet}
+
+{@render hello('alice')}
+{@render hello('bob')}
+```
+
+</Steps>
+
+## Passing Snippets to Components
+
+### Explicit Snippet Props
+
+Pass snippets as props to create flexible, composable components:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import Table from './Table.svelte';
+  
+  const fruits = [
+    { name: 'apples', qty: 5, price: 2 },
+    { name: 'bananas', qty: 10, price: 1 },
+    { name: 'cherries', qty: 20, price: 0.5 }
+  ];
+</script>
+
+{#snippet header()}
+  <th>fruit</th>
+  <th>qty</th>
+  <th>price</th>
+  <th>total</th>
+{/snippet}
+
+{#snippet row(d)}
+  <td>{d.name}</td>
+  <td>{d.qty}</td>
+  <td>{d.price}</td>
+  <td>{d.qty * d.price}</td>
+{/snippet}
+
+<Table data={fruits} {header} {row} />
+```
+
+```svelte
+<!-- Table.svelte -->
+<script>
+  let { data, header, row } = $props();
+</script>
+
+<table>
+  <thead>
+    <tr>{@render header()}</tr>
+  </thead>
+  <tbody>
+    {#each data as item}
+      <tr>{@render row(item)}</tr>
+    {/each}
+  </tbody>
+</table>
+```
+
+### Implicit Snippet Props
+
+Snippets declared inside component tags automatically become props:
+
+```svelte
+<!-- Semantically the same as above -->
+<Table data={fruits}>
+  {#snippet header()}
+    <th>fruit</th>
+    <th>qty</th>
+    <th>price</th>
+    <th>total</th>
+  {/snippet}
+  
+  {#snippet row(d)}
+    <td>{d.name}</td>
+    <td>{d.qty}</td>
+    <td>{d.price}</td>
+    <td>{d.qty * d.price}</td>
+  {/snippet}
+</Table>
+```
+
+## The Children Snippet
+
+Content that's not in a named snippet becomes the `children` snippet:
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import Button from './Button.svelte';
+</script>
+
+<Button>click me</Button>
+```
+
+```svelte
+<!-- Button.svelte -->
+<script>
+  let { children } = $props();
+</script>
+
+<button>{@render children()}</button>
+```
+
+This is the equivalent of Svelte 4's default slot.
+
+## Optional Snippets
+
+Make snippets optional with optional chaining or conditional rendering:
+
+```svelte
+<script>
+  let { children, header } = $props();
+</script>
+
+<!-- Optional chaining -->
+{@render header?.()}
+
+<!-- Or with fallback content -->
+{#if children}
+  {@render children()}
+{:else}
+  <p>No content provided</p>
+{/if}
+```
+
+## Typing Snippets
+
+Use the `Snippet` interface from `svelte` for type safety:
+
+```svelte
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  
+  interface Props {
+    data: any[];
+    children?: Snippet;
+    row: Snippet<[any]>;
+    header?: Snippet;
+  }
+  
+  let { data, children, row, header }: Props = $props();
+</script>
+```
+
+The type argument is a tuple representing snippet parameters:
+
+```ts
+interface Props {
+  simple: Snippet;              // No parameters
+  withParam: Snippet<[string]>; // One parameter
+  multiple: Snippet<[string, number]>; // Multiple parameters
+}
+```
+
+## Generic Snippet Types
+
+Create type-safe snippets with generics:
+
+```svelte
+<script lang="ts" generics="T">
+  import type { Snippet } from 'svelte';
+  
+  let {
+    data,
+    children,
+    row
+  }: {
+    data: T[];
+    children?: Snippet;
+    row: Snippet<[T]>;
+  } = $props();
+</script>
+
+<div class="table">
+  {#if children}
+    {@render children()}
+  {/if}
+  
+  {#each data as item}
+    {@render row(item)}
+  {/each}
+</div>
+```
+
+## Snippet Patterns
+
+### Render Props Pattern
+
+Pass data from parent to snippet parameters:
+
+```svelte
+<!-- DataProvider.svelte -->
+<script>
+  import type { Snippet } from 'svelte';
+  
+  let { children }: { children: Snippet<[{ user: User, posts: Post[] }]> } = $props();
+  
+  let data = $state({ user: null, posts: [] });
+  
+  onMount(async () => {
+    data.user = await fetchUser();
+    data.posts = await fetchPosts();
+  });
+</script>
+
+{#if data.user}
+  {@render children(data)}
+{:else}
+  <p>Loading...</p>
+{/if}
+```
+
+```svelte
+<!-- App.svelte -->
+<DataProvider>
+  {#snippet children({ user, posts })}
+    <h1>{user.name}</h1>
+    <ul>
+      {#each posts as post}
+        <li>{post.title}</li>
+      {/each}
+    </ul>
+  {/snippet}
+</DataProvider>
+```
+
+### Recursive Snippets
+
+Snippets can reference themselves:
+
+```svelte
+{#snippet countdown(n)}
+  {#if n > 0}
+    <span>{n}...</span>
+    {@render countdown(n - 1)}
+  {:else}
+    <span>🚀</span>
+  {/if}
+{/snippet}
+
+{@render countdown(10)}
+```
+
+### Conditional Rendering
+
+Provide different snippet implementations:
+
+```svelte
+<script>
+  import Card from './Card.svelte';
+  
+  let showImage = $state(true);
+</script>
+
+<Card>
+  {#snippet header()}
+    <h2>Product Details</h2>
+  {/snippet}
+  
+  {#snippet body()}
+    {#if showImage}
+      <img src="product.jpg" alt="Product" />
+    {/if}
+    <p>Description goes here</p>
+  {/snippet}
+  
+  {#snippet footer()}
+    <button>Buy Now</button>
+  {/snippet}
+</Card>
+```
+
+## Exporting Snippets
+
+Snippets can be exported from `<script module>`:
+
+```svelte
+<!-- snippets.svelte -->
+<script module>
+  export { add };
+</script>
+
+{#snippet add(a, b)}
+  {a} + {b} = {a + b}
+{/snippet}
+```
+
+```svelte
+<!-- App.svelte -->
+<script>
+  import { add } from './snippets.svelte';
+</script>
+
+{@render add(2, 3)}
+```
+
+## Programmatic Snippets
+
+Create snippets programmatically with `createRawSnippet`:
+
+```svelte
+<script>
+  import { createRawSnippet } from 'svelte';
+  
+  const dynamicSnippet = createRawSnippet((name) => {
+    return {
+      render: () => `<p>Hello ${name}!</p>`,
+      setup: (element) => {
+        // Optional setup logic
+      }
+    };
+  });
+</script>
+
+{@render dynamicSnippet('World')}
+```
+
+## Legacy Slots (Svelte 4)
+
+In Svelte 4, content was passed using `<slot>` elements. This is now deprecated:
+
+```svelte
+<!-- OLD: Svelte 4 -->
+<!-- Modal.svelte -->
+<div class="modal">
+  <slot></slot>
+  <hr>
+  <slot name="buttons"></slot>
+</div>
+```
+
+```svelte
+<!-- App.svelte -->
+<Modal>
+  This is slotted content
+  
+  <div slot="buttons">
+    <button>Close</button>
+  </div>
+</Modal>
+```
+
+```svelte
+<!-- NEW: Svelte 5 -->
+<!-- Modal.svelte -->
+<script>
+  let { children, buttons } = $props();
+</script>
+
+<div class="modal">
+  {@render children?.()}
+  <hr>
+  {@render buttons?.()}
+</div>
+```
+
+```svelte
+<!-- App.svelte -->
+<Modal>
+  This is slotted content
+  
+  {#snippet buttons()}
+    <button>Close</button>
+  {/snippet}
+</Modal>
+```
+
+## Best Practices
+
+1. **Name snippets clearly** - Use descriptive names that indicate what the snippet renders
+2. **Document parameters** - Make it clear what data snippets expect
+3. **Provide fallbacks** - Use optional chaining or conditional rendering for optional snippets
+4. **Type your snippets** - Use TypeScript for better autocomplete and error checking
+5. **Keep snippets focused** - Each snippet should have a single, clear purpose
+
+```svelte
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  
+  interface Props {
+    /** Snippet for rendering the card header */
+    header?: Snippet;
+    /** Snippet for rendering the card body with access to data */
+    body: Snippet<[{ title: string, description: string }]>;
+    /** Snippet for rendering the card footer */
+    footer?: Snippet;
+  }
+  
+  let { header, body, footer }: Props = $props();
+</script>
+```

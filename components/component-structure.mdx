@@ -1,0 +1,195 @@
+---
+title: Component Structure
+description: Understanding the anatomy and structure of Svelte components
+---
+
+Components are the building blocks of Svelte applications. They are written into `.svelte` files using a superset of HTML.
+
+## Component Anatomy
+
+A Svelte component consists of three optional sections:
+
+```svelte
+<script module>
+  // module-level logic (runs once when the module first evaluates)
+</script>
+
+<script>
+  // instance-level logic (runs when component instance is created)
+</script>
+
+<!-- markup (zero or more items) -->
+
+<style>
+  /* scoped styles */
+</style>
+```
+
+All three sections are optional, giving you flexibility in how you structure your components.
+
+## The Script Block
+
+The `<script>` block contains JavaScript (or TypeScript with `lang="ts"`) that runs when a component instance is created.
+
+```svelte
+<script>
+  import { onMount } from 'svelte';
+  
+  let count = $state(0);
+  let doubled = $derived(count * 2);
+  
+  function increment() {
+    count += 1;
+  }
+  
+  onMount(() => {
+    console.log('Component mounted');
+  });
+</script>
+
+<button onclick={increment}>
+  Count: {count} (doubled: {doubled})
+</button>
+```
+
+<Steps>
+
+### Variables and State
+
+Variables declared at the top level can be referenced in the component's markup. Use the `$state` rune to create reactive state:
+
+```svelte
+<script>
+  let count = $state(0);
+  let items = $state([]);
+</script>
+```
+
+### Imports
+
+Import other components, utilities, and Svelte functions:
+
+```svelte
+<script>
+  import { onMount, tick } from 'svelte';
+  import Button from './Button.svelte';
+  import { formatDate } from './utils.js';
+</script>
+```
+
+### Functions
+
+Define functions that can be called from your markup:
+
+```svelte
+<script>
+  let name = $state('');
+  
+  function greet() {
+    alert(`Hello ${name}!`);
+  }
+</script>
+
+<input bind:value={name} />
+<button onclick={greet}>Greet</button>
+```
+
+</Steps>
+
+## Module Script
+
+A `<script module>` tag runs once when the module first evaluates, rather than for each component instance:
+
+```svelte
+<script module>
+  let totalInstances = 0;
+  
+  export function getInstanceCount() {
+    return totalInstances;
+  }
+</script>
+
+<script>
+  totalInstances += 1;
+  console.log(`instantiated ${totalInstances} times`);
+</script>
+```
+
+You can export bindings from this block, and they become exports of the compiled module. You cannot export default, since the default export is the component itself.
+
+## The Template
+
+The template section contains your HTML markup with Svelte's template syntax:
+
+```svelte
+<script>
+  let name = $state('world');
+  let items = $state(['apple', 'banana', 'cherry']);
+</script>
+
+<h1>Hello {name}!</h1>
+
+<ul>
+  {#each items as item}
+    <li>{item}</li>
+  {/each}
+</ul>
+```
+
+Expressions in curly braces (`{expression}`) are evaluated and inserted into the DOM.
+
+## The Style Block
+
+CSS inside a `<style>` block is scoped to that component:
+
+```svelte
+<style>
+  p {
+    /* this will only affect <p> elements in this component */
+    color: burlywood;
+    font-size: 16px;
+  }
+  
+  .highlight {
+    background-color: yellow;
+  }
+</style>
+
+<p class="highlight">This text is styled</p>
+```
+
+Styles are automatically scoped, preventing them from affecting other components.
+
+## Component Instance
+
+When a component is instantiated, Svelte:
+
+1. Runs the `<script>` block to initialize state and reactive declarations
+2. Creates the DOM elements from your template
+3. Applies scoped styles
+4. Runs lifecycle hooks like `onMount`
+5. Sets up reactive dependencies for automatic updates
+
+## Best Practices
+
+- Keep components focused on a single responsibility
+- Use props to pass data from parent to child
+- Emit events or use callbacks to communicate from child to parent
+- Extract reusable logic into separate modules
+- Use TypeScript for better type safety
+
+```svelte
+<script lang="ts">
+  interface User {
+    name: string;
+    email: string;
+  }
+  
+  let { user }: { user: User } = $props();
+</script>
+
+<div>
+  <h2>{user.name}</h2>
+  <p>{user.email}</p>
+</div>
+```

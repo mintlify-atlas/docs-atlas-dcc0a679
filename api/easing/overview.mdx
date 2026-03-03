@@ -1,0 +1,198 @@
+---
+title: Easing Functions
+description: Built-in easing functions for smooth animations and transitions
+---
+
+Easing functions specify the rate of change over time, transforming linear time values into curves that feel more natural. Svelte provides a comprehensive set of easing functions adapted from [mattdesl's easing library](https://github.com/mattdesl/eases).
+
+## Signature
+
+```ts
+type EasingFunction = (t: number) => number
+```
+
+<ParamField path="t" type="number" required>
+  A value between 0 and 1 representing the progress of the animation
+</ParamField>
+
+<ResponseField name="return" type="number">
+  The eased value, typically between 0 and 1 (some easing functions like elastic and back may exceed this range)
+</ResponseField>
+
+## Usage
+
+Easing functions are commonly used with transitions and animations:
+
+```svelte
+<script>
+  import { fade } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+
+  let visible = $state(true);
+</script>
+
+<button onclick={() => visible = !visible}>
+  Toggle
+</button>
+
+{#if visible}
+  <div transition:fade={{ duration: 300, easing: cubicOut }}>
+    Fades in and out
+  </div>
+{/if}
+```
+
+## Available Functions
+
+### linear
+
+```ts
+function linear(t: number): number
+```
+
+No easing, constant rate of change.
+
+### Quadratic (quad)
+
+```ts
+function quadIn(t: number): number
+function quadOut(t: number): number
+function quadInOut(t: number): number
+```
+
+Acceleration using a quadratic curve (t²).
+
+### Cubic
+
+```ts
+function cubicIn(t: number): number
+function cubicOut(t: number): number
+function cubicInOut(t: number): number
+```
+
+Acceleration using a cubic curve (t³). **Recommended for most UI animations**.
+
+### Quartic (quart)
+
+```ts
+function quartIn(t: number): number
+function quartOut(t: number): number
+function quartInOut(t: number): number
+```
+
+Acceleration using a quartic curve (t⁴).
+
+### Quintic (quint)
+
+```ts
+function quintIn(t: number): number
+function quintOut(t: number): number
+function quintInOut(t: number): number
+```
+
+Acceleration using a quintic curve (t⁵).
+
+### Sinusoidal (sine)
+
+```ts
+function sineIn(t: number): number
+function sineOut(t: number): number
+function sineInOut(t: number): number
+```
+
+Acceleration using a sinusoidal curve. Provides very smooth, gentle easing.
+
+### Exponential (expo)
+
+```ts
+function expoIn(t: number): number
+function expoOut(t: number): number
+function expoInOut(t: number): number
+```
+
+Acceleration using an exponential curve (2^t). Creates dramatic acceleration.
+
+### Circular (circ)
+
+```ts
+function circIn(t: number): number
+function circOut(t: number): number
+function circInOut(t: number): number
+```
+
+Acceleration using a circular curve (sqrt). Sharp acceleration at the end.
+
+### Back
+
+```ts
+function backIn(t: number): number
+function backOut(t: number): number
+function backInOut(t: number): number
+```
+
+Overshoots the target value before settling. Creates a "wind-up" effect.
+
+### Elastic
+
+```ts
+function elasticIn(t: number): number
+function elasticOut(t: number): number
+function elasticInOut(t: number): number
+```
+
+Creates an elastic, spring-like oscillation. More pronounced than `back`.
+
+### Bounce
+
+```ts
+function bounceIn(t: number): number
+function bounceOut(t: number): number
+function bounceInOut(t: number): number
+```
+
+Bouncing effect, like a ball landing.
+
+## Easing Variants
+
+Most easing functions come in three variants:
+
+- **In**: Starts slow and accelerates (easing at the beginning)
+- **Out**: Starts fast and decelerates (easing at the end)
+- **InOut**: Combines both, easing at the beginning and end
+
+For most UI animations, **Out** or **InOut** variants feel more natural and responsive.
+
+## Creating Custom Easing
+
+You can create custom easing functions:
+
+```svelte
+<script>
+  import { fade } from 'svelte/transition';
+
+  // Custom elastic easing
+  function customEase(t) {
+    return t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+</script>
+
+<div transition:fade={{ easing: customEase }}>
+  Custom easing
+</div>
+```
+
+## Notes
+
+- All easing functions accept a value `t` between 0 and 1
+- Some functions (elastic, back, bounce) may return values outside the 0-1 range
+- For most UI animations, `cubicOut` or `cubicInOut` provide good defaults
+- Easing functions are pure and have no side effects
+- The library is adapted from mattdesl's work, distributed under MIT License
+
+## See Also
+
+- [Transitions](/api/transitions/fade) - Use easing with built-in transitions
+- [Motion](/api/motion/tweened) - Use easing with tweened values
+- [Easing visualizer](https://svelte.dev/examples/easing) - Interactive examples

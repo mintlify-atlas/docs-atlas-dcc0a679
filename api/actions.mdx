@@ -1,0 +1,297 @@
+---
+title: Actions
+description: Reusable element-level lifecycle functions
+---
+
+Actions are functions that are called when an element is created. They provide a way to add custom behavior to DOM elements, such as tooltips, click-outside detection, or custom event handlers.
+
+## Action Interface
+
+```ts
+interface Action<
+  Element = HTMLElement,
+  Parameter = undefined,
+  Attributes extends Record<string, any> = Record<never, any>
+> {
+  <Node extends Element>(
+    ...args: undefined extends Parameter
+      ? [node: Node, parameter?: Parameter]
+      : [node: Node, parameter: Parameter]
+  ): void | ActionReturn<Parameter, Attributes>;
+}
+```
+
+<ParamField path="Element" type="HTMLElement" default="HTMLElement">
+  The type of element this action works on (e.g., `HTMLDivElement`, `HTMLButtonElement`)
+</ParamField>
+
+<ParamField path="Parameter" type="any" default="undefined">
+  The type of parameter the action accepts. Use `undefined` if the action takes no parameters
+</ParamField>
+
+<ParamField path="Attributes" type="Record<string, any>" default="Record<never, any>">
+  Additional attributes and events the action enables on the element (TypeScript only)
+</ParamField>
+
+## ActionReturn Interface
+
+```ts
+interface ActionReturn<
+  Parameter = undefined,
+  Attributes extends Record<string, any> = Record<never, any>
+> {
+  update?: (parameter: Parameter) => void;
+  destroy?: () => void;
+}
+```
+
+<ResponseField name="update" type="(parameter: Parameter) => void">
+  Called whenever the action's parameter changes, immediately after Svelte applies markup updates
+</ResponseField>
+
+<ResponseField name="destroy" type="() => void">
+  Called when the element is unmounted from the DOM
+</ResponseField>
+
+## Usage
+
+### Basic Action
+
+Create a simple action that runs when an element is added to the DOM:
+
+```svelte
+<script>
+  function greet(node) {
+    console.log(`Hello from ${node.tagName}`);
+  }
+</script>
+
+<div use:greet>
+  I will greet you in the console
+</div>
+```
+
+### Action with Parameters
+
+Pass parameters to customize the action's behavior:
+
+```svelte
+<script>
+  function tooltip(node, text) {
+    const tooltip = document.createElement('div');
+    tooltip.textContent = text;
+    tooltip.className = 'tooltip';
+
+    function showTooltip() {
+      document.body.appendChild(tooltip);
+      const rect = node.getBoundingClientRect();
+      tooltip.style.left = rect.left + 'px';
+      tooltip.style.top = rect.bottom + 'px';
+    }
+
+    function hideTooltip() {
+      tooltip.remove();
+    }
+
+    node.addEventListener('mouseenter', showTooltip);
+    node.addEventListener('mouseleave', hideTooltip);
+
+    return {
+      destroy() {
+        node.removeEventListener('mouseenter', showTooltip);
+        node.removeEventListener('mouseleave', hideTooltip);
+        tooltip.remove();
+      }
+    };
+  }
+</script>
+
+<button use:tooltip="Click me!">
+  Hover for tooltip
+</button>
+```
+
+### Action with Update
+
+Handle parameter changes with the `update` method:
+
+```svelte
+<script>
+  function tooltip(node, text) {
+    let tooltipElement;
+
+    function createTooltip() {
+      tooltipElement = document.createElement('div');
+      tooltipElement.textContent = text;
+      tooltipElement.className = 'tooltip';
+    }
+
+    createTooltip();
+
+    return {
+      update(newText) {
+        // Called when the parameter changes
+        text = newText;
+        if (tooltipElement) {
+          tooltipElement.textContent = newText;
+        }
+      },
+      destroy() {
+        tooltipElement?.remove();
+      }
+    };
+  }
+
+  let tooltipText = $state('Initial text');
+</script>
+
+<button use:tooltip={tooltipText}>
+  Hover me
+</button>
+
+<input bind:value={tooltipText} />
+```
+
+### TypeScript Example
+
+Type your actions for better IDE support:
+
+```ts
+import type { Action } from 'svelte/action';
+
+// Action that only works on div elements
+export const myAction: Action<HTMLDivElement, { someProperty: boolean } | undefined> = (
+  node,
+  param = { someProperty: true }
+) => {
+  // Implementation
+  console.log(node, param);
+
+  return {
+    update(newParam) {
+      console.log('Updated:', newParam);
+    },
+    destroy() {
+      console.log('Cleaned up');
+    }
+  };
+};
+```
+
+### Adding Type-Safe Attributes
+
+Define custom attributes and events that the action enables:
+
+```ts
+import type { Action } from 'svelte/action';
+
+interface Attributes {
+  'data-custom'?: string;
+  'on:customEvent'?: (e: CustomEvent<boolean>) => void;
+}
+
+export const myAction: Action<HTMLElement, string, Attributes> = (node, param) => {
+  // This enables TypeScript to recognize these attributes
+  // when the action is used on an element
+  node.setAttribute('data-custom', param);
+
+  node.dispatchEvent(new CustomEvent('customEvent', { detail: true }));
+
+  return {
+    update(newParam) {
+      node.setAttribute('data-custom', newParam);
+    }
+  };
+};
+```
+
+Usage:
+
+```svelte
+<script>
+  import { myAction } from './actions';
+</script>
+
+<!-- TypeScript recognizes these attributes -->
+<div
+  use:myAction="value"
+  data-custom="also works"
+  on:customEvent={(e) => console.log(e.detail)}
+>
+  Content
+</div>
+```
+
+## Common Patterns
+
+### Click Outside
+
+```ts
+import type { Action } from 'svelte/action';
+
+export const clickOutside: Action<HTMLElement, () => void> = (node, callback) => {
+  function handleClick(event: MouseEvent) {
+    if (!node.contains(event.target as Node)) {
+      callback();
+    }
+  }
+
+  document.addEventListener('click', handleClick, true);
+
+  return {
+    destroy() {
+      document.removeEventListener('click', handleClick, true);
+    }
+  };
+};
+```
+
+### Focus Trap
+
+```ts
+import type { Action } from 'svelte/action';
+
+export const focusTrap: Action<HTMLElement> = (node) => {
+  const focusableElements = node.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  const firstElement = focusableElements[0] as HTMLElement;
+  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Tab') {
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      } else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    }
+  }
+
+  node.addEventListener('keydown', handleKeydown);
+
+  return {
+    destroy() {
+      node.removeEventListener('keydown', handleKeydown);
+    }
+  };
+};
+```
+
+## Notes
+
+- Actions are called when the element is created
+- The `destroy` method is called when the element is removed from the DOM
+- The `update` method is called whenever the parameter changes
+- Multiple actions can be used on the same element
+- Actions run after the element is added to the DOM
+- Actions are useful for integrating third-party libraries
+- The `Attributes` generic is TypeScript-only and has no runtime effect
+
+## See Also
+
+- [Event handlers](/template-syntax/event-handlers) - Handle DOM events
+- [Bindings](/template-syntax/bindings) - Bind to element properties
+- [use: directive](https://svelte.dev/docs/svelte/element-directives#use) - Element directive syntax

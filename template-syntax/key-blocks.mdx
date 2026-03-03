@@ -1,0 +1,309 @@
+---
+title: Key Blocks
+description: Force component re-initialization with {#key} blocks in Svelte
+---
+
+Key blocks destroy and recreate their contents when the value of an expression changes. This is useful for forcing components to reinitialize or triggering transitions.
+
+## Basic Syntax
+
+```svelte
+{#key expression}...{/key}
+```
+
+## Reinitializing Components
+
+When used around components, key blocks cause them to be reinstantiated and reinitialized:
+
+```svelte
+{#key value}
+  <Component />
+{/key}
+```
+
+### Example: Resetting Component State
+
+```svelte
+<script>
+  import Form from './Form.svelte';
+  let formKey = $state(0);
+  
+  function resetForm() {
+    formKey++; // Increment to force recreation
+  }
+</script>
+
+<button onclick={resetForm}>Reset Form</button>
+
+{#key formKey}
+  <Form />
+{/key}
+```
+
+## Triggering Transitions
+
+Key blocks are useful for playing transitions whenever a value changes:
+
+```svelte
+{#key value}
+  <div transition:fade>{value}</div>
+{/key}
+```
+
+### Example: Animated Counter
+
+```svelte
+<script>
+  import { fade, fly } from 'svelte/transition';
+  let count = $state(0);
+</script>
+
+<button onclick={() => count++}>Increment</button>
+
+{#key count}
+  <div transition:fly={{ y: -20 }}>
+    <h1>{count}</h1>
+  </div>
+{/key}
+```
+
+## Real-World Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Route Transitions" icon="route">
+    ```svelte
+    <script>
+      import { page } from '$app/stores';
+      import { fade } from 'svelte/transition';
+    </script>
+    
+    {#key $page.url.pathname}
+      <div transition:fade>
+        <slot />
+      </div>
+    {/key}
+    ```
+  </Card>
+  
+  <Card title="Data Refresh" icon="refresh">
+    ```svelte
+    <script>
+      let userId = $state(1);
+      let refreshKey = $state(0);
+      
+      function refresh() {
+        refreshKey++;
+      }
+    </script>
+    
+    <button onclick={refresh}>Refresh Data</button>
+    
+    {#key refreshKey}
+      {#await fetchUser(userId)}
+        <p>Loading...</p>
+      {:then user}
+        <UserProfile {user} />
+      {/await}
+    {/key}
+    ```
+  </Card>
+  
+  <Card title="Media Player" icon="play">
+    ```svelte
+    <script>
+      let currentTrack = $state(tracks[0]);
+    </script>
+    
+    {#key currentTrack.id}
+      <video 
+        src={currentTrack.url} 
+        autoplay
+      >
+        <track kind="captions" src={currentTrack.captions} />
+      </video>
+    {/key}
+    ```
+  </Card>
+  
+  <Card title="Animated Messages" icon="message">
+    ```svelte
+    <script>
+      import { fly } from 'svelte/transition';
+      let message = $state('');
+      let messages = $state([]);
+      
+      function sendMessage() {
+        messages = [...messages, {
+          id: Date.now(),
+          text: message
+        }];
+        message = '';
+      }
+    </script>
+    
+    {#each messages as msg (msg.id)}
+      {#key msg.id}
+        <div transition:fly={{ x: 300 }}>
+          {msg.text}
+        </div>
+      {/key}
+    {/each}
+    ```
+  </Card>
+</CardGroup>
+
+## Resetting Form State
+
+Key blocks are perfect for resetting forms without manually clearing each field:
+
+```svelte
+<script>
+  let formKey = $state(0);
+  let submitted = $state(false);
+  
+  function handleSubmit(event) {
+    const formData = new FormData(event.target);
+    // Process form...
+    submitted = true;
+    
+    // Reset form by changing key
+    formKey++;
+  }
+</script>
+
+{#key formKey}
+  <form onsubmit={handleSubmit}>
+    <input name="name" placeholder="Name" />
+    <input name="email" type="email" placeholder="Email" />
+    <textarea name="message" placeholder="Message"></textarea>
+    <button type="submit">Submit</button>
+  </form>
+{/key}
+
+{#if submitted}
+  <p class="success">Form submitted successfully!</p>
+{/if}
+```
+
+## Image Gallery with Transitions
+
+```svelte
+<script>
+  import { fade } from 'svelte/transition';
+  import { quintOut } from 'svelte/easing';
+  
+  let images = $state([
+    { id: 1, src: '/images/photo1.jpg', alt: 'Photo 1' },
+    { id: 2, src: '/images/photo2.jpg', alt: 'Photo 2' },
+    { id: 3, src: '/images/photo3.jpg', alt: 'Photo 3' }
+  ]);
+  
+  let currentIndex = $state(0);
+  let current = $derived(images[currentIndex]);
+  
+  function next() {
+    currentIndex = (currentIndex + 1) % images.length;
+  }
+  
+  function prev() {
+    currentIndex = (currentIndex - 1 + images.length) % images.length;
+  }
+</script>
+
+<div class="gallery">
+  <button onclick={prev}>Previous</button>
+  
+  {#key current.id}
+    <img 
+      src={current.src} 
+      alt={current.alt}
+      transition:fade={{ duration: 300, easing: quintOut }}
+    />
+  {/key}
+  
+  <button onclick={next}>Next</button>
+</div>
+```
+
+## Dynamic Component Switching
+
+```svelte
+<script>
+  import TabA from './TabA.svelte';
+  import TabB from './TabB.svelte';
+  import TabC from './TabC.svelte';
+  
+  let activeTab = $state('a');
+  
+  const components = {
+    a: TabA,
+    b: TabB,
+    c: TabC
+  };
+</script>
+
+<div class="tabs">
+  <button onclick={() => activeTab = 'a'}>Tab A</button>
+  <button onclick={() => activeTab = 'b'}>Tab B</button>
+  <button onclick={() => activeTab = 'c'}>Tab C</button>
+</div>
+
+{#key activeTab}
+  <svelte:component this={components[activeTab]} />
+{/key}
+```
+
+## Performance Considerations
+
+<Warning>
+  Key blocks completely destroy and recreate their contents. This means:
+  - All component state is lost
+  - DOM elements are removed and recreated
+  - Lifecycle methods run again
+  
+  Use key blocks intentionally, not as a default pattern.
+</Warning>
+
+### When to Use Key Blocks
+
+- Force a component to reset to its initial state
+- Trigger enter/exit transitions on value changes
+- Ensure media elements reload with new sources
+- Reset complex third-party components
+
+### When NOT to Use Key Blocks
+
+- Simple value updates (use reactive statements instead)
+- List rendering (use `{#each}` with keys)
+- Conditional rendering (use `{#if}` blocks)
+- Minor UI updates
+
+## Combining with Other Blocks
+
+```svelte
+<script>
+  import { slide } from 'svelte/transition';
+  let category = $state('all');
+  let items = $state([]);
+</script>
+
+<select bind:value={category}>
+  <option value="all">All Items</option>
+  <option value="featured">Featured</option>
+  <option value="new">New Arrivals</option>
+</select>
+
+{#key category}
+  <div transition:slide>
+    {#await fetchItems(category)}
+      <p>Loading {category} items...</p>
+    {:then items}
+      {#each items as item (item.id)}
+        <div class="item">{item.name}</div>
+      {:else}
+        <p>No items in this category</p>
+      {/each}
+    {/await}
+  </div>
+{/key}
+```

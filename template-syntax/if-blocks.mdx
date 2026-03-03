@@ -1,0 +1,213 @@
+---
+title: If Blocks
+description: Conditionally render content with {#if} blocks in Svelte
+---
+
+Content can be conditionally rendered using `{#if}` blocks, which allow you to show or hide markup based on expressions.
+
+## Basic If Block
+
+The simplest form renders content only when a condition is true:
+
+```svelte
+{#if expression}...{/if}
+```
+
+### Example
+
+```svelte
+{#if answer === 42}
+  <p>what was the question?</p>
+{/if}
+```
+
+## If-Else Blocks
+
+Add an `{:else}` clause for content to show when the condition is false:
+
+```svelte
+{#if expression}...{:else}...{/if}
+```
+
+### Example
+
+```svelte
+{#if user.loggedIn}
+  <button onclick={logout}>Log out</button>
+{:else}
+  <button onclick={login}>Log in</button>
+{/if}
+```
+
+## Else-If Chains
+
+Test multiple conditions with `{:else if}` clauses:
+
+```svelte
+{#if expression}...{:else if expression}...{/if}
+```
+
+### Example
+
+```svelte
+{#if porridge.temperature > 100}
+  <p>too hot!</p>
+{:else if 80 > porridge.temperature}
+  <p>too cold!</p>
+{:else}
+  <p>just right!</p>
+{/if}
+```
+
+## Real-World Use Cases
+
+<CardGroup cols={2}>
+  <Card title="User Authentication" icon="lock">
+    ```svelte
+    {#if user}
+      <div class="profile">
+        <img src={user.avatar} alt="{user.name}" />
+        <span>Welcome, {user.name}</span>
+      </div>
+    {:else}
+      <a href="/login">Sign in</a>
+    {/if}
+    ```
+  </Card>
+  
+  <Card title="Loading States" icon="spinner">
+    ```svelte
+    {#if loading}
+      <Spinner />
+    {:else if error}
+      <ErrorMessage {error} />
+    {:else}
+      <DataTable data={results} />
+    {/if}
+    ```
+  </Card>
+  
+  <Card title="Feature Flags" icon="flag">
+    ```svelte
+    {#if features.darkMode}
+      <button onclick={toggleDarkMode}>
+        Switch to light mode
+      </button>
+    {/if}
+    ```
+  </Card>
+  
+  <Card title="Permission Checks" icon="shield">
+    ```svelte
+    {#if user.role === 'admin'}
+      <AdminPanel />
+    {:else if user.role === 'moderator'}
+      <ModeratorPanel />
+    {:else}
+      <UserPanel />
+    {/if}
+    ```
+  </Card>
+</CardGroup>
+
+## Inline Conditionals
+
+Blocks don't have to wrap elements - they can wrap text within elements:
+
+```svelte
+<p>
+  You have {count} {#if count === 1}item{:else}items{/if} in your cart.
+</p>
+```
+
+## Nested If Blocks
+
+You can nest if blocks for complex conditions:
+
+```svelte
+{#if user}
+  {#if user.subscription === 'premium'}
+    <PremiumFeatures />
+  {:else}
+    <StandardFeatures />
+    {#if user.trialEligible}
+      <TrialOffer />
+    {/if}
+  {/if}
+{:else}
+  <SignUpPrompt />
+{/if}
+```
+
+## Common Patterns
+
+### Show/Hide Toggle
+
+```svelte
+<script>
+  let showDetails = $state(false);
+</script>
+
+<button onclick={() => showDetails = !showDetails}>
+  {showDetails ? 'Hide' : 'Show'} details
+</button>
+
+{#if showDetails}
+  <div class="details">
+    <p>Additional information here...</p>
+  </div>
+{/if}
+```
+
+### Empty State
+
+```svelte
+{#if items.length > 0}
+  <ul>
+    {#each items as item}
+      <li>{item.name}</li>
+    {/each}
+  </ul>
+{:else}
+  <p class="empty-state">No items found</p>
+{/if}
+```
+
+### Status Indicators
+
+```svelte
+{#if status === 'success'}
+  <div class="alert success">Operation completed!</div>
+{:else if status === 'error'}
+  <div class="alert error">Something went wrong</div>
+{:else if status === 'warning'}
+  <div class="alert warning">Please review</div>
+{/if}
+```
+
+<Warning>
+  Avoid too many nested if blocks as they can make templates hard to read. Consider extracting complex logic into separate components or computed values.
+</Warning>
+
+## Performance Notes
+
+Svelte efficiently updates the DOM when conditions change:
+
+- Only the affected parts of the DOM are updated
+- Elements inside false conditions are removed from the DOM
+- When conditions become true, elements are created fresh
+
+```svelte
+<script>
+  let show = $state(true);
+  
+  // This will re-run when show changes
+  $effect(() => {
+    console.log('Component mounted:', show);
+  });
+</script>
+
+{#if show}
+  <ExpensiveComponent />
+{/if}
+```
