@@ -1,0 +1,112 @@
+---
+title: settled
+description: Wait for all pending effects to complete execution
+---
+
+The `settled()` function returns a promise that resolves when all pending effects have finished executing. This is useful when you need to wait for the reactive system to fully settle before proceeding.
+
+## Import
+
+```js
+import { settled } from 'svelte';
+```
+
+## Signature
+
+```ts
+function settled(): Promise<void>;
+```
+
+## Returns
+
+<ResponseField name="Promise<void>" type="Promise<void>">
+  A promise that resolves when all pending effects have completed
+</ResponseField>
+
+## Usage
+
+### Waiting for effects to complete
+
+```svelte
+<script>
+  import { settled } from 'svelte';
+
+  let count = $state(0);
+
+  $effect(() => {
+    console.log('Effect running:', count);
+  });
+
+  async function updateAndWait() {
+    count++;
+    
+    // Wait for the effect to run
+    await settled();
+    
+    console.log('Effect has completed');
+  }
+</script>
+
+<button onclick={updateAndWait}>Update</button>
+```
+
+### Testing
+
+```js
+import { mount, settled } from 'svelte';
+import { test } from 'vitest';
+import Component from './Component.svelte';
+
+test('effects complete', async () => {
+  const component = mount(Component, { target: document.body });
+  
+  // Trigger some state changes
+  component.updateState();
+  
+  // Wait for all effects to complete
+  await settled();
+  
+  // Now we can safely assert on the final state
+  expect(component.finalValue).toBe(42);
+});
+```
+
+### Chaining operations
+
+```svelte
+<script>
+  import { settled } from 'svelte';
+
+  let data = $state(null);
+  let processed = $state(null);
+
+  $effect(() => {
+    if (data) {
+      processed = processData(data);
+    }
+  });
+
+  async function loadAndProcess() {
+    data = await fetchData();
+    
+    // Wait for the effect to process the data
+    await settled();
+    
+    // Now processed is guaranteed to be updated
+    console.log('Processed:', processed);
+  }
+</script>
+```
+
+## Notes
+
+- Similar to `tick()` but waits for all effects, not just DOM updates
+- Useful in testing scenarios
+- Guarantees all reactive computations have completed
+- Different from `flushSync()` which runs synchronously
+
+## See also
+
+- [tick](/api/tick) - Wait for DOM updates
+- [flushSync](/api/flush-sync) - Synchronously flush updates
+- [$effect](/runes/effect) - Run side effects

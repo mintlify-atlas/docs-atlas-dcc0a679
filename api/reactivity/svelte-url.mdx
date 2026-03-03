@@ -1,0 +1,93 @@
+---
+title: SvelteURL
+description: Reactive URL object that triggers updates when modified
+---
+
+The `SvelteURL` class provides a reactive wrapper around JavaScript's `URL` object. When you modify URL properties, Svelte's reactivity system is automatically notified.
+
+## Import
+
+```js
+import { SvelteURL } from 'svelte/reactivity';
+```
+
+## Usage
+
+### Basic usage
+
+```svelte
+<script>
+  import { SvelteURL } from 'svelte/reactivity';
+
+  const url = new SvelteURL('https://example.com/path?foo=bar');
+
+  function updatePath(newPath) {
+    url.pathname = newPath;
+  }
+
+  function updateQuery(key, value) {
+    url.searchParams.set(key, value);
+  }
+</script>
+
+<p>Current URL: {url.href}</p>
+<p>Path: {url.pathname}</p>
+<button onclick={() => updatePath('/new-path')}>Change path</button>
+<button onclick={() => updateQuery('page', '2')}>Add query</button>
+```
+
+### URL builder
+
+```svelte
+<script>
+  import { SvelteURL } from 'svelte/reactivity';
+
+  const apiUrl = new SvelteURL('https://api.example.com/data');
+
+  function addFilter(key, value) {
+    apiUrl.searchParams.set(key, value);
+  }
+
+  function removeFilter(key) {
+    apiUrl.searchParams.delete(key);
+  }
+
+  async function fetchData() {
+    const response = await fetch(apiUrl.href);
+    return response.json();
+  }
+</script>
+
+<div>
+  <input onchange={(e) => addFilter('search', e.target.value)} placeholder="Search" />
+  <input onchange={(e) => addFilter('category', e.target.value)} placeholder="Category" />
+  <button onclick={fetchData}>Fetch</button>
+</div>
+
+<p>API URL: {apiUrl.href}</p>
+```
+
+## Properties
+
+All standard URL properties are reactive:
+
+- `href` - The full URL
+- `protocol` - The protocol (e.g., 'https:')
+- `hostname` - The hostname
+- `port` - The port
+- `pathname` - The path
+- `search` - The query string
+- `hash` - The hash fragment
+- `searchParams` - URLSearchParams object (also reactive)
+
+## Notes
+
+- All URL property modifications trigger reactivity
+- The `searchParams` property is also reactive
+- Useful for building and manipulating URLs reactively
+- Works with relative and absolute URLs
+
+## See also
+
+- [SvelteMap](/api/reactivity/svelte-map) - Reactive URLSearchParams
+- [$state](/runes/state) - General reactive state

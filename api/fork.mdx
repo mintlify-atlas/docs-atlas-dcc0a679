@@ -1,0 +1,143 @@
+---
+title: fork
+description: Create parallel state updates that can be committed or discarded
+---
+
+The `fork()` function allows you to create speculative state updates that happen in parallel, which can later be committed or discarded. This is useful for prefetching data or preparing UI changes in advance.
+
+<Warning>
+The `fork()` function requires experimental async mode to be enabled in your Svelte configuration.
+</Warning>
+
+## Import
+
+```js
+import { fork } from 'svelte';
+```
+
+## Signature
+
+```ts
+function fork(fn: () => void): Fork;
+
+interface Fork {
+  commit(): Promise<void>;
+  discard(): void;
+}
+```
+
+## Parameters
+
+<ParamField path="fn" type="() => void" required>
+  A function that performs state updates within the fork
+</ParamField>
+
+## Returns
+
+<ResponseField name="Fork" type="object">
+  An object with methods to commit or discard the forked state
+  
+  <Expandable title="properties">
+    <ResponseField name="commit" type="() => Promise<void>">
+      Commits the forked state changes, applying them to the actual state. Returns a promise that resolves when the changes are applied.
+    </ResponseField>
+    
+    <ResponseField name="discard" type="() => void">
+      Discards the forked state changes without applying them
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Usage
+
+### Prefetching data
+
+```svelte
+<script>
+  import { fork } from 'svelte';
+  import { data } from './stores.js';
+
+  let currentFork = $state(null);
+
+  function prefetch(id) {
+    // Start loading data in a fork
+    currentFork = fork(() => {
+      data.set(fetchData(id));
+    });
+  }
+
+  function navigate(id) {
+    if (currentFork) {
+      // Commit the prefetched data
+      currentFork.commit();
+    } else {
+      // Load data normally
+      data.set(fetchData(id));
+    }
+  }
+
+  function cancelPrefetch() {
+    if (currentFork) {
+      currentFork.discard();
+      currentFork = null;
+    }
+  }
+</script>
+
+<nav>
+  <a onmouseenter={() => prefetch(1)} onclick={() => navigate(1)}>
+    Page 1
+  </a>
+  <a onmouseenter={() => prefetch(2)} onclick={() => navigate(2)}>
+    Page 2
+  </a>
+</nav>
+```
+
+### Speculative UI updates
+
+```svelte
+<script>
+  import { fork } from 'svelte';
+
+  let count = $state(0);
+  let preview = null;
+
+  function showPreview() {
+    preview = fork(() => {
+      count += 10;
+    });
+  }
+
+  function apply() {
+    if (preview) {
+      preview.commit();
+      preview = null;
+    }
+  }
+
+  function cancel() {
+    if (preview) {
+      preview.discard();
+      preview = null;
+    }
+  }
+</script>
+
+<p>Count: {count}</p>
+<button onclick={showPreview}>Preview +10</button>
+<button onclick={apply}>Apply</button>
+<button onclick={cancel}>Cancel</button>
+```
+
+## Notes
+
+- Forks must be created outside of any existing batch
+- State changes within a fork are isolated until committed
+- Multiple forks can exist simultaneously
+- Requires experimental async mode
+
+## See also
+
+- [flushSync](/api/flush-sync) - Synchronously flush state updates
+- [settled](/api/settled) - Wait for all effects to settle

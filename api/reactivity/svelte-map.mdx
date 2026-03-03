@@ -1,0 +1,131 @@
+---
+title: SvelteMap
+description: Reactive Map that triggers updates when modified
+---
+
+The `SvelteMap` class provides a reactive wrapper around JavaScript's `Map`. When you set, delete, or clear entries, Svelte's reactivity system is automatically notified.
+
+## Import
+
+```js
+import { SvelteMap } from 'svelte/reactivity';
+```
+
+## Usage
+
+### Basic usage
+
+```svelte
+<script>
+  import { SvelteMap } from 'svelte/reactivity';
+
+  const preferences = new SvelteMap([
+    ['theme', 'dark'],
+    ['language', 'en']
+  ]);
+
+  function updatePreference(key, value) {
+    preferences.set(key, value);
+  }
+</script>
+
+<div>
+  {#each [...preferences] as [key, value]}
+    <p>{key}: {value}</p>
+  {/each}
+</div>
+
+<button onclick={() => updatePreference('theme', 'light')}>
+  Switch to light theme
+</button>
+```
+
+### Cache with reactive updates
+
+```svelte
+<script>
+  import { SvelteMap } from 'svelte/reactivity';
+
+  const cache = new SvelteMap();
+
+  async function fetchData(id) {
+    if (cache.has(id)) {
+      return cache.get(id);
+    }
+
+    const data = await fetch(`/api/items/${id}`).then(r => r.json());
+    cache.set(id, data);
+    return data;
+  }
+
+  function clearCache() {
+    cache.clear();
+  }
+</script>
+
+<p>Cached items: {cache.size}</p>
+<button onclick={clearCache}>Clear cache</button>
+```
+
+### Form data management
+
+```svelte
+<script>
+  import { SvelteMap } from 'svelte/reactivity';
+
+  const formData = new SvelteMap();
+
+  function updateField(field, value) {
+    formData.set(field, value);
+  }
+
+  function submitForm() {
+    console.log(Object.fromEntries(formData));
+  }
+
+  const isValid = $derived(
+    formData.has('name') && 
+    formData.has('email') && 
+    formData.get('name').length > 0
+  );
+</script>
+
+<input
+  type="text"
+  placeholder="Name"
+  oninput={(e) => updateField('name', e.target.value)}
+/>
+<input
+  type="email"
+  placeholder="Email"
+  oninput={(e) => updateField('email', e.target.value)}
+/>
+
+<button onclick={submitForm} disabled={!isValid}>
+  Submit
+</button>
+```
+
+## Methods
+
+All standard Map methods work and trigger reactivity when they modify the map:
+
+- `set(key, value)` - Sets a key-value pair
+- `delete(key)` - Removes an entry
+- `clear()` - Removes all entries
+- `get(key)` - Gets a value (doesn't trigger reactivity)
+- `has(key)` - Checks if key exists (doesn't trigger reactivity)
+- `size` - Property that returns the number of entries
+
+## Notes
+
+- More efficient than using `$state()` with a regular Map
+- Iteration methods work as expected (forEach, keys, values, entries)
+- The Map is proxied to track changes automatically
+- Useful for key-value data that needs to be reactive
+
+## See also
+
+- [$state](/runes/state) - General reactive state
+- [SvelteSet](/api/reactivity/svelte-set) - Reactive Set
+- [SvelteDate](/api/reactivity/svelte-date) - Reactive Date

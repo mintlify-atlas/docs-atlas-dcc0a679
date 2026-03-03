@@ -1,0 +1,144 @@
+---
+title: getAbortSignal
+description: Get an AbortSignal that aborts when the current effect re-runs or is destroyed
+---
+
+The `getAbortSignal()` function returns an `AbortSignal` that automatically aborts when the current `$derived` or `$effect` re-runs or is destroyed. This is useful for cancelling ongoing async operations.
+
+## Import
+
+```js
+import { getAbortSignal } from 'svelte';
+```
+
+## Signature
+
+```ts
+function getAbortSignal(): AbortSignal;
+```
+
+## Returns
+
+<ResponseField name="AbortSignal" type="AbortSignal">
+  A standard [AbortSignal](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) that aborts when the effect re-runs or is destroyed
+</ResponseField>
+
+## Usage
+
+### Cancelling fetch requests
+
+```svelte
+<script>
+  import { getAbortSignal } from 'svelte';
+
+  let { id } = $props();
+
+  async function getData(id) {
+    const response = await fetch(`/api/items/${id}`, {
+      signal: getAbortSignal()
+    });
+    return await response.json();
+  }
+
+  // This will automatically cancel the previous fetch when id changes
+  const data = $derived(await getData(id));
+</script>
+
+<div>{JSON.stringify(data)}</div>
+```
+
+### Cleanup in effects
+
+```svelte
+<script>
+  import { getAbortSignal } from 'svelte';
+
+  let active = $state(true);
+
+  $effect(() => {
+    if (active) {
+      const signal = getAbortSignal();
+      
+      // Start a long-running operation
+      longRunningTask({ signal })
+        .then(() => console.log('completed'))
+        .catch(err => {
+          if (err.name === 'AbortError') {
+            console.log('cancelled');
+          }
+        });
+    }
+  });
+</script>
+
+<button onclick={() => active = !active}>
+  Toggle
+</button>
+```
+
+### With intervals
+
+```svelte
+<script>
+  import { getAbortSignal } from 'svelte';
+
+  let count = $state(0);
+
+  $effect(() => {
+    const signal = getAbortSignal();
+    
+    const interval = setInterval(() => {
+      if (!signal.aborted) {
+        count++;
+      }
+    }, 1000);
+
+    signal.addEventListener('abort', () => {
+      clearInterval(interval);
+    });
+  });
+</script>
+
+<p>Count: {count}</p>
+```
+
+## Error handling
+
+```svelte
+<script>
+  import { getAbortSignal } from 'svelte';
+
+  let { query } = $props();
+
+  async function search(query) {
+    try {
+      const response = await fetch(`/search?q=${query}`, {
+        signal: getAbortSignal()
+      });
+      return await response.json();
+    } catch (err) {
+      // Ignore abort errors - they're expected when query changes
+      if (err.name !== 'AbortError') {
+        console.error('Search failed:', err);
+      }
+      return null;
+    }
+  }
+
+  const results = $derived(await search(query));
+</script>
+```
+
+## Notes
+
+- Must be called inside a `$derived` or `$effect`
+- Each call returns a unique signal
+- The signal aborts automatically on cleanup
+- Works with any API that accepts an AbortSignal
+- Helps prevent race conditions and memory leaks
+
+## See also
+
+- [$effect](/runes/effect) - Run side effects
+- [$derived](/runes/derived) - Derived reactive values
+- [onDestroy](/api/on-destroy) - Cleanup on component destroy

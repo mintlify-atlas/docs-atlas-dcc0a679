@@ -1,0 +1,182 @@
+---
+title: createRawSnippet
+description: Create snippets programmatically from a render function
+---
+
+The `createRawSnippet()` function creates a snippet programmatically from a render function. This is useful for library authors or when you need to generate snippets dynamically.
+
+## Import
+
+```js
+import { createRawSnippet } from 'svelte';
+```
+
+## Signature
+
+```ts
+function createRawSnippet<Params extends unknown[]>(
+  fn: (...params: Params) => {
+    render: () => string;
+    setup?: (element: Element) => void | (() => void);
+  }
+): Snippet<Params>;
+```
+
+## Parameters
+
+<ParamField path="fn" type="function" required>
+  A function that receives the snippet parameters and returns an object with `render` and optional `setup` methods
+  
+  <Expandable title="Return value">
+    <ParamField path="render" type="() => string" required>
+      A function that returns the HTML string to render
+    </ParamField>
+    
+    <ParamField path="setup" type="(element: Element) => void | (() => void)">
+      Optional function called with the container element after rendering. Can return a cleanup function.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="Snippet" type="Snippet<Params>">
+  A snippet that can be rendered with `{@render}`
+</ResponseField>
+
+## Usage
+
+### Basic snippet
+
+```svelte
+<script>
+  import { createRawSnippet } from 'svelte';
+
+  const hello = createRawSnippet(() => ({
+    render: () => `<p>Hello, world!</p>`
+  }));
+</script>
+
+{@render hello()}
+```
+
+### With parameters
+
+```svelte
+<script>
+  import { createRawSnippet } from 'svelte';
+
+  const greet = createRawSnippet((name) => ({
+    render: () => `<p>Hello, ${name}!</p>`
+  }));
+</script>
+
+{@render greet('Alice')}
+{@render greet('Bob')}
+```
+
+### With setup and cleanup
+
+```svelte
+<script>
+  import { createRawSnippet } from 'svelte';
+
+  const interactive = createRawSnippet((message) => ({
+    render: () => `<button class="dynamic-btn">${message}</button>`,
+    setup: (element) => {
+      const button = element.querySelector('.dynamic-btn');
+      
+      const handleClick = () => {
+        alert(message);
+      };
+      
+      button.addEventListener('click', handleClick);
+      
+      // Return cleanup function
+      return () => {
+        button.removeEventListener('click', handleClick);
+      };
+    }
+  }));
+</script>
+
+{@render interactive('Click me!')}
+```
+
+### Dynamic rendering
+
+```svelte
+<script>
+  import { createRawSnippet } from 'svelte';
+
+  function createList(items) {
+    return createRawSnippet(() => ({
+      render: () => `
+        <ul>
+          ${items.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      `
+    }));
+  }
+
+  let items = $state(['Apple', 'Banana', 'Orange']);
+  let list = $derived(createList(items));
+</script>
+
+{@render list()}
+```
+
+### Library wrapper
+
+```js
+// chart-wrapper.js
+import { createRawSnippet } from 'svelte';
+import Chart from 'chart.js';
+
+export function createChart(config) {
+  return createRawSnippet(() => ({
+    render: () => `<canvas class="chart"></canvas>`,
+    setup: (element) => {
+      const canvas = element.querySelector('.chart');
+      const chart = new Chart(canvas, config);
+      
+      return () => {
+        chart.destroy();
+      };
+    }
+  }));
+}
+```
+
+```svelte
+<script>
+  import { createChart } from './chart-wrapper.js';
+
+  const myChart = createChart({
+    type: 'bar',
+    data: {
+      labels: ['Red', 'Blue', 'Yellow'],
+      datasets: [{
+        label: 'Votes',
+        data: [12, 19, 3]
+      }]
+    }
+  });
+</script>
+
+{@render myChart()}
+```
+
+## Notes
+
+- The `render` function is called every time the snippet is rendered
+- The `setup` function is called once after the HTML is inserted into the DOM
+- HTML is inserted as raw HTML (not sanitized)
+- Use with caution - improper use can lead to XSS vulnerabilities
+- Primarily intended for library authors and advanced use cases
+- Regular snippets (`{#snippet}`) are preferred for normal application code
+
+## See also
+
+- [Snippets](/template-syntax/snippets) - Declarative snippet syntax
+- [Slots](/components/slots) - Content projection patterns

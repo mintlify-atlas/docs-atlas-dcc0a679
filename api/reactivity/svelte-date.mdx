@@ -1,0 +1,64 @@
+---
+title: SvelteDate
+description: Reactive Date object that triggers updates when modified
+---
+
+The `SvelteDate` class provides a reactive wrapper around JavaScript's `Date` object. When you call methods that modify the date, Svelte's reactivity system is automatically notified.
+
+## Import
+
+```js
+import { SvelteDate } from 'svelte/reactivity';
+```
+
+## Usage
+
+### Basic usage
+
+```svelte
+<script>
+  import { SvelteDate } from 'svelte/reactivity';
+
+  const now = new SvelteDate();
+
+  function addDay() {
+    now.setDate(now.getDate() + 1);
+  }
+</script>
+
+<p>Current date: {now.toLocaleDateString()}</p>
+<button onclick={addDay}>Add 1 day</button>
+```
+
+### Clock example
+
+```svelte
+<script>
+  import { SvelteDate } from 'svelte/reactivity';
+
+  const time = new SvelteDate();
+
+  $effect(() => {
+    const interval = setInterval(() => {
+      time.setTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  });
+</script>
+
+<p>Current time: {time.toLocaleTimeString()}</p>
+```
+
+## Notes
+
+- All mutating methods trigger reactivity (setDate, setHours, etc.)
+- Reading methods work like normal Date (getDate, getHours, etc.)
+- Inherits all methods from the standard Date object
+- More efficient than using `$state()` with a Date object
+
+## See also
+
+- [$state](/runes/state) - General reactive state
+- [SvelteSet](/api/reactivity/svelte-set) - Reactive Set
+- [SvelteMap](/api/reactivity/svelte-map) - Reactive Map

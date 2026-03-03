@@ -1,0 +1,105 @@
+---
+title: SvelteSet
+description: Reactive Set that triggers updates when modified
+---
+
+The `SvelteSet` class provides a reactive wrapper around JavaScript's `Set`. When you add, delete, or clear items, Svelte's reactivity system is automatically notified.
+
+## Import
+
+```js
+import { SvelteSet } from 'svelte/reactivity';
+```
+
+## Usage
+
+### Basic usage
+
+```svelte
+<script>
+  import { SvelteSet } from 'svelte/reactivity';
+
+  const tags = new SvelteSet(['javascript', 'svelte']);
+
+  function addTag(tag) {
+    tags.add(tag);
+  }
+
+  function removeTag(tag) {
+    tags.delete(tag);
+  }
+</script>
+
+<ul>
+  {#each [...tags] as tag}
+    <li>
+      {tag}
+      <button onclick={() => removeTag(tag)}>×</button>
+    </li>
+  {/each}
+</ul>
+
+<input 
+  type="text" 
+  onchange={(e) => {
+    addTag(e.target.value);
+    e.target.value = '';
+  }}
+/>
+```
+
+### Unique selections
+
+```svelte
+<script>
+  import { SvelteSet } from 'svelte/reactivity';
+
+  const selected = new SvelteSet();
+  const items = ['Apple', 'Banana', 'Orange', 'Mango'];
+
+  function toggle(item) {
+    if (selected.has(item)) {
+      selected.delete(item);
+    } else {
+      selected.add(item);
+    }
+  }
+</script>
+
+<div>
+  {#each items as item}
+    <label>
+      <input
+        type="checkbox"
+        checked={selected.has(item)}
+        onchange={() => toggle(item)}
+      />
+      {item}
+    </label>
+  {/each}
+</div>
+
+<p>Selected: {selected.size} items</p>
+```
+
+## Methods
+
+All standard Set methods work and trigger reactivity when they modify the set:
+
+- `add(value)` - Adds a value
+- `delete(value)` - Removes a value
+- `clear()` - Removes all values
+- `has(value)` - Checks if value exists (doesn't trigger reactivity)
+- `size` - Property that returns the number of elements
+
+## Notes
+
+- More efficient than using `$state()` with a regular Set
+- Iteration methods work as expected (forEach, keys, values, entries)
+- The Set is proxied to track changes automatically
+
+## See also
+
+- [$state](/runes/state) - General reactive state
+- [SvelteMap](/api/reactivity/svelte-map) - Reactive Map
+- [SvelteDate](/api/reactivity/svelte-date) - Reactive Date

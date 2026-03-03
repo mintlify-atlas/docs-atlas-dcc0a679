@@ -99,7 +99,11 @@
               "api/hydrate",
               "api/untrack",
               "api/flush-sync",
-              "api/tick"
+              "api/tick",
+              "api/fork",
+              "api/settled",
+              "api/get-abort-signal",
+              "api/create-raw-snippet"
             ]
           },
           {
@@ -186,6 +190,16 @@
             "group": "Server",
             "pages": [
               "api/server/render"
+            ]
+          },
+          {
+            "group": "Reactivity Utilities",
+            "pages": [
+              "api/reactivity/svelte-date",
+              "api/reactivity/svelte-set",
+              "api/reactivity/svelte-map",
+              "api/reactivity/svelte-url",
+              "api/reactivity/media-query"
             ]
           }
         ]

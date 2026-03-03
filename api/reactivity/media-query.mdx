@@ -1,0 +1,144 @@
+---
+title: MediaQuery
+description: Reactive media query that updates when the match state changes
+---
+
+The `MediaQuery` class creates a reactive media query that automatically updates when the viewport matches or stops matching the query.
+
+## Import
+
+```js
+import { MediaQuery } from 'svelte/reactivity';
+```
+
+## Usage
+
+### Responsive design
+
+```svelte
+<script>
+  import { MediaQuery } from 'svelte/reactivity';
+
+  const isMobile = new MediaQuery('(max-width: 768px)');
+  const isDark = new MediaQuery('(prefers-color-scheme: dark)');
+</script>
+
+{#if isMobile.matches}
+  <nav>Mobile menu</nav>
+{:else}
+  <nav>Desktop menu</nav>
+{/if}
+
+{#if isDark.matches}
+  <div class="dark-theme">Dark mode content</div>
+{:else}
+  <div class="light-theme">Light mode content</div>
+{/if}
+```
+
+### Multiple breakpoints
+
+```svelte
+<script>
+  import { MediaQuery } from 'svelte/reactivity';
+
+  const queries = {
+    mobile: new MediaQuery('(max-width: 640px)'),
+    tablet: new MediaQuery('(min-width: 641px) and (max-width: 1024px)'),
+    desktop: new MediaQuery('(min-width: 1025px)')
+  };
+
+  const currentBreakpoint = $derived(
+    queries.mobile.matches ? 'mobile' :
+    queries.tablet.matches ? 'tablet' : 'desktop'
+  );
+</script>
+
+<p>Current breakpoint: {currentBreakpoint}</p>
+```
+
+### Conditional features
+
+```svelte
+<script>
+  import { MediaQuery } from 'svelte/reactivity';
+
+  const prefersReducedMotion = new MediaQuery('(prefers-reduced-motion: reduce)');
+  const hasHover = new MediaQuery('(hover: hover)');
+  const isPortrait = new MediaQuery('(orientation: portrait)');
+</script>
+
+<button
+  class:animated={!prefersReducedMotion.matches}
+  class:has-hover={hasHover.matches}
+>
+  {isPortrait.matches ? '📱' : '💻'}
+  Click me
+</button>
+
+<style>
+  .animated {
+    transition: transform 0.3s;
+  }
+  .animated:hover {
+    transform: scale(1.1);
+  }
+  .has-hover:hover {
+    background: #eee;
+  }
+</style>
+```
+
+## Properties
+
+<ParamField path="matches" type="boolean">
+  Whether the media query currently matches. This property is reactive.
+</ParamField>
+
+<ParamField path="media" type="string">
+  The media query string used to create this instance
+</ParamField>
+
+## Constructor
+
+```ts
+new MediaQuery(query: string)
+```
+
+<ParamField path="query" type="string" required>
+  A media query string (e.g., '(min-width: 768px)')
+</ParamField>
+
+## Notes
+
+- Automatically adds and removes event listeners
+- Updates reactively when the match state changes
+- More efficient than using window.matchMedia directly
+- Works server-side (always returns false for matches)
+- Cleanup is handled automatically when component is destroyed
+
+## Common media queries
+
+```js
+// Viewport size
+new MediaQuery('(min-width: 768px)')
+new MediaQuery('(max-width: 1024px)')
+
+// User preferences
+new MediaQuery('(prefers-color-scheme: dark)')
+new MediaQuery('(prefers-reduced-motion: reduce)')
+new MediaQuery('(prefers-contrast: high)')
+
+// Device capabilities
+new MediaQuery('(hover: hover)')
+new MediaQuery('(pointer: coarse)') // Touch device
+new MediaQuery('(orientation: portrait)')
+
+// Display features
+new MediaQuery('(display-mode: standalone)') // PWA
+```
+
+## See also
+
+- [$state](/runes/state) - General reactive state
+- [$derived](/runes/derived) - Derived reactive values
